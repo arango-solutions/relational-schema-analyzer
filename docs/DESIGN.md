@@ -225,6 +225,8 @@ Metadata
   physicalSchemaFingerprint: str   # for drift detection (reuse r2g schema_diff)
   patterns: [ "join_table", "inheritance_via_shared_pk", "soft_delete", ... ]
   provenance: { ... }
+  # proposed, additive — see DESIGN-ADDENDUM-bitemporal.md:
+  transactionTime / validTime.from / validTimeSource / predecessorFingerprint
 ```
 
 ---

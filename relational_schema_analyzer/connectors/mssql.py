@@ -57,6 +57,8 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
+from ..bitemporal import CATALOG
+from ..bitemporal import to_iso as _iso
 from ..log import get_logger
 from ..types import CheckConstraint, Column, ForeignKey, Schema, SourceProvenance, Table
 
@@ -217,12 +219,55 @@ class SQLServerConnector:
         finally:
             cur.close()
 
+        valid_times = self._valid_times(conn)
+
         for row in table_rows:
             name = row["TABLE_NAME"]
-            schema.tables[name] = self._process_table(
+            table = self._process_table(
                 conn, name, is_view=(row.get("TABLE_TYPE") == "VIEW")
             )
+            if name in valid_times:
+                table.valid_from = valid_times[name]
+                table.valid_time_source = CATALOG
+            schema.tables[name] = table
         return schema
+
+    def _valid_times(self, conn: Any) -> dict[str, str]:
+        """``sys.objects.modify_date`` per table, for bitemporal valid time (addendum §3).
+
+        The most trustworthy signal of any source RSA supports: SQL Server moves
+        ``modify_date`` on ``ALTER`` and index changes but not on DML, so it means what the
+        addendum wants ``valid_from`` to mean. It is still passed through the fingerprint
+        rule, which costs nothing when the date is right and protects against the cases
+        where an index rebuild moved it without changing the schema RSA models.
+
+        Best-effort: a role without ``sys.objects`` visibility loses the date, not the run.
+        """
+        out: dict[str, str] = {}
+        cur = conn.cursor(as_dict=True)
+        try:
+            cur.execute(
+                """
+                SELECT o.name AS TABLE_NAME,
+                       COALESCE(o.modify_date, o.create_date) AS CHANGED_AT
+                FROM sys.objects o
+                JOIN sys.schemas s ON s.schema_id = o.schema_id
+                WHERE s.name = %s AND o.type IN ('U', 'V')
+                """,
+                (self.schema_name,),
+            )
+            for row in cur.fetchall() or []:
+                stamp = _iso(row.get("CHANGED_AT"))
+                if stamp:
+                    out[row["TABLE_NAME"]] = stamp
+        except Exception as err:  # noqa: BLE001 - valid time is best-effort
+            logger.warning("mssql_valid_time_failed", error=str(err))
+        finally:
+            try:
+                cur.close()
+            except Exception:  # noqa: BLE001
+                pass
+        return out
 
     def _process_table(self, conn: Any, table_name: str, *, is_view: bool = False) -> Table:
         cur = conn.cursor(as_dict=True)

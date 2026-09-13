@@ -31,6 +31,8 @@ from pathlib import Path
 from typing import Any
 
 from ..log import get_logger
+from ..bitemporal import FILE
+from ..bitemporal import to_iso as _iso
 from ..types import Column, ForeignKey, Schema, SourceProvenance, Table
 
 logger = get_logger(__name__)
@@ -95,6 +97,19 @@ class OsiConnector:
         models = _as_list(doc.get("semantic_model"))
         version = doc.get("version")
 
+        # Bitemporal valid time (addendum §3). OSI has no per-dataset date, so the best
+        # available signal is the document's own generation stamp, falling back to the
+        # file's mtime. Either way it is `file`: it dates the *model document*, not the
+        # warehouse objects it describes, and those drift apart as soon as the model lags a
+        # migration. OSI already degrades types honestly (§9.3.1); time is no different.
+        raw_meta = doc.get("metadata")
+        doc_meta: dict[str, Any] = raw_meta if isinstance(raw_meta, dict) else {}
+        generated_at = _iso(
+            doc.get("generated_at")
+            or doc.get("updated_at")
+            or doc_meta.get("generated_at")
+        ) or _file_mtime_iso(path)
+
         schema = Schema()
         db_hint: str | None = None
         for model in models:
@@ -108,6 +123,9 @@ class OsiConnector:
                     continue
                 database, _ = _parse_source(dataset.get("source"))
                 db_hint = db_hint or database
+                if generated_at:
+                    table.valid_from = generated_at
+                    table.valid_time_source = FILE
                 schema.tables[table.name] = table
             self._apply_relationships(model, schema)
 
@@ -228,3 +246,11 @@ class OsiConnector:
                     is_unique=set(from_cols) in unique_sets,
                 )
             )
+
+
+def _file_mtime_iso(path: Path) -> Any:
+    """The model document's mtime as ISO-8601 UTC, or ``None`` if unreadable."""
+    try:
+        return _iso(path.stat().st_mtime)
+    except OSError:
+        return None

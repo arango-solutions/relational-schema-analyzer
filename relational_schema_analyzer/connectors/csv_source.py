@@ -36,6 +36,8 @@ import polars as pl
 from ..dump_reader import DumpReader
 from ..log import get_logger
 from ..naming import singularize
+from ..bitemporal import FILE
+from ..bitemporal import to_iso as _iso
 from ..types import CheckConstraint, Column, Schema, SourceProvenance, Table
 
 logger = get_logger(__name__)
@@ -161,7 +163,17 @@ class CsvConnector:
             source=SourceProvenance(dialect="csv", database=self.directory.name)
         )
         for table_name, path in self._table_files().items():
-            schema.tables[table_name] = self._process_file(table_name, path)
+            table = self._process_file(table_name, path)
+            # Bitemporal valid time (addendum §3): a file's mtime is the closest thing a
+            # CSV has to "when this definition became true". Reported as `file`, never
+            # `catalog` — mtime is reset by a copy, a checkout or a sync, so it dates the
+            # *file* and not the data. Naming the source honestly is what lets a consumer
+            # decide how much to lean on it.
+            stamp = _file_mtime_iso(path)
+            if stamp:
+                table.valid_from = stamp
+                table.valid_time_source = FILE
+            schema.tables[table_name] = table
         return schema
 
     def open_session(self) -> "CsvSession":
@@ -364,3 +376,11 @@ class CsvSession:
 
 
 __all__ = ["CsvConnector", "CsvSession"]
+
+
+def _file_mtime_iso(path: Path) -> Optional[str]:
+    """A file's modification time as ISO-8601 UTC, or ``None`` if it cannot be read."""
+    try:
+        return _iso(path.stat().st_mtime)
+    except OSError:
+        return None

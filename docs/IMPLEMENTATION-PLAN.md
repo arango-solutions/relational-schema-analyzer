@@ -199,6 +199,7 @@ available backend with capability gating):
 | Offline corpus (always-on) | CSV | real CSV connector + golden bundle | `tests/test_golden_csv.py`, main CI |
 | Live Docker (CI) | **Postgres, MySQL** | service containers + `RUN_INTEGRATION` conformance | `tests/integration/`, `integration.yml` |
 | Live opt-in (DSN) | SQL Server, **Snowflake**, **Databricks** | same harness, gated by a DSN env var | `tests/integration/` (skipped without DSN) |
+| Live opt-in (DSN) | **Postgres DDL event log** | executes DESIGN-ADDENDUM-bitemporal §3.1's published trigger and checks RSA reads it back: DDL dated, `ALTER` later than an earlier `CREATE`, DML producing no row | `tests/integration/test_bitemporal_postgres.py` (skipped without `RSA_PG_DSN`) |
 | Live opt-in (DSN) | **Postgres + MySQL sampler SQL** | value overlap + all three denormalization probes executed against real engines — the per-dialect SQL DuckDB cannot vouch for. Both verified correct; the CSV break was isolated to its Polars code, not systemic. **SQL Server and Databricks probe SQL remains unexecuted.** | `tests/integration/test_sampler_probes.py` (per-dialect DSN; each skips independently) |
 
 - **Snowflake** → `fakesnow` for CI (real code path, no cloud) + opt-in live via `RSA_SNOWFLAKE_DSN`.
@@ -314,6 +315,16 @@ projection — the whole core (Phases 0–5) landed together in the first releas
   candidate-key fix. `r2g` needs this version: 0.4.0 **and** 0.7.1 both carry the broken
   probes, so a real-sampler test against either passes for the wrong reason —
   `_safe_probe` swallows the error and the sampling detectors emit nothing.
+
+- **Unreleased on `main`** — **bitemporal stamping** (`bitemporal.py`,
+  `docs/DESIGN-ADDENDUM-bitemporal.md`): every schema records when RSA observed it
+  (transaction time) and when the definition became true of the source (valid time), with a
+  `valid_time_source` saying how the date was obtained. Valid time is capturable only at
+  introspection, so RSA is the only component that can record it — and it records without
+  storing: `schema_diff` stays pure and history remains the temporal store's job. Catalog
+  dates are gated by the fingerprint, which is now explicitly structure-only, so Snowflake's
+  `LAST_ALTERED` moving on DML cannot fake a schema change. Additive: unstamped schemas
+  serialize byte-identically to before.
 
 Planned next:
 

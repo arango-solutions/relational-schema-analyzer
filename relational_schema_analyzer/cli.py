@@ -35,6 +35,7 @@ from .owl_export import (
     export_owl_jsonld,
     export_owl_turtle,
 )
+from .bitemporal import PriorRun, stamp_bitemporal
 from .overlay import OverlayError, apply_key_overlay, load_key_overlay
 from .types import PhysicalSchema
 
@@ -57,6 +58,16 @@ def _add_source_args(p: argparse.ArgumentParser) -> None:
         "--from-snapshot",
         metavar="FILE",
         help="Load a previously captured physical.json instead of introspecting a live source",
+    )
+    p.add_argument(
+        "--prior-run",
+        metavar="FILE",
+        help=(
+            "A previous run's bundle (or its metadata block) — enables the bitemporal "
+            "safety rule: a catalog change-timestamp is trusted only when the schema "
+            "fingerprint actually changed, otherwise the earlier valid_from is carried "
+            "forward. Without it, catalog dates are reported as-is."
+        ),
     )
     p.add_argument(
         "--overlay",
@@ -83,7 +94,36 @@ def _load_physical(args: argparse.Namespace) -> PhysicalSchema:
             physical = apply_key_overlay(physical, load_key_overlay(args.overlay))
         except OverlayError as err:
             raise SystemExit(f"error: {err}") from err
-    return physical
+    # Bitemporal stamping runs last and unconditionally: RSA is the only component that can
+    # observe valid time (DESIGN-ADDENDUM-bitemporal), so an unstamped emission throws away
+    # information nothing downstream can recover. It runs after the overlay because an
+    # overlay changes the structure, and therefore the fingerprint the §2.3 rule compares.
+    return stamp_bitemporal(physical, prior=_load_prior_run(args))
+
+
+def _load_prior_run(args: argparse.Namespace) -> "PriorRun | None":
+    """Read ``--prior-run`` — a previous bundle or metadata block — if given.
+
+    RSA is stateless, so the previous observation has to come from the caller. Without one
+    RSA cannot tell a real DDL change from Snowflake's ``LAST_ALTERED`` moving on DML, and
+    says so by reporting the catalog value as ``catalog`` rather than pretending to more
+    certainty than it has.
+    """
+    path = getattr(args, "prior_run", None)
+    if not path:
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            payload = json.load(fh)
+    except (OSError, json.JSONDecodeError) as err:
+        raise SystemExit(f"error: could not read --prior-run {path}: {err}") from err
+    prior = PriorRun.from_metadata(payload)
+    if prior is None:
+        raise SystemExit(
+            f"error: --prior-run {path} has no physicalSchemaFingerprint; "
+            "pass a previous bundle or its metadata block"
+        )
+    return prior
 
 
 def _introspect(args: argparse.Namespace) -> PhysicalSchema:

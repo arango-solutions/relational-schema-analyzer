@@ -21,6 +21,7 @@ PG has two fast paths we care about:
 
 from __future__ import annotations
 
+import re
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Iterator, Optional
@@ -28,7 +29,29 @@ from typing import Any, Iterator, Optional
 import psycopg
 from psycopg.rows import dict_row, tuple_row
 
+from ..bitemporal import EVENT
+from ..bitemporal import to_iso as _iso
+from ..log import get_logger
 from ..types import CheckConstraint, Column, ForeignKey, Schema, SourceProvenance, Table
+
+logger = get_logger(__name__)
+
+#: Default name of the optional DDL event log RSA reads for PostgreSQL valid time
+#: (DESIGN-ADDENDUM-bitemporal §3.1). Operator-installed; RSA only ever reads it.
+DEFAULT_DDL_HISTORY_TABLE = "rsa_ddl_history"
+
+_RELATION_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_$]*(\.[A-Za-z_][A-Za-z0-9_$]*)?$")
+
+
+def _safe_relation(name: str) -> str:
+    """Validate a caller-supplied relation name before it is interpolated into SQL.
+
+    The history table is configuration rather than user input, but it is the one identifier
+    in this connector that does not come from the catalog — so it is checked, not trusted.
+    """
+    if not _RELATION_RE.match(name or ""):
+        raise ValueError(f"Unsafe DDL history table name: {name!r}")
+    return name
 
 
 def _fk_dedupe_key(fk: ForeignKey) -> tuple:
@@ -123,9 +146,24 @@ def preview_table_rows(
 
 
 class PostgresConnector:
-    def __init__(self, connection_string: str, schema_name: str = "public") -> None:
+    def __init__(
+        self,
+        connection_string: str,
+        schema_name: str = "public",
+        *,
+        ddl_history_table: Optional[str] = DEFAULT_DDL_HISTORY_TABLE,
+    ) -> None:
         self.connection_string = connection_string
         self.schema_name = schema_name
+        # PostgreSQL exposes no DDL timestamp anywhere in its catalogs, so the only honest
+        # source of valid time is a DDL event trigger the *operator* installed
+        # (DESIGN-ADDENDUM-bitemporal §3.1). RSA reads it if present and never creates it:
+        # this is a read-only introspector (DESIGN §1), and a tool that silently installs
+        # triggers in a production database is not one.
+        #
+        # Absent the table, tables simply have no signal and the resolver records
+        # `observed` — which is the truthful answer, not a degraded one.
+        self.ddl_history_table = ddl_history_table
 
     def get_schema(self) -> Schema:
         """Connect to PostgreSQL and inspect the schema.
@@ -154,14 +192,20 @@ class PostgresConnector:
                     )
                     tables = cur.fetchall()
 
+                    valid_times = self._valid_times(cur)
+
                     for t in tables:
                         table_name = t["table_name"]
-                        schema.tables[table_name] = self._process_table(
+                        table = self._process_table(
                             cur,
                             table_name,
                             is_view=t["relkind"] in ("v", "m"),
                             comment=t["comment"],
                         )
+                        if table_name in valid_times:
+                            table.valid_from = valid_times[table_name]
+                            table.valid_time_source = EVENT
+                        schema.tables[table_name] = table
 
                     cur.execute(
                         """
@@ -185,6 +229,52 @@ class PostgresConnector:
 
         annotate_partition_metadata(schema, partition_rows)
         return schema
+
+    def _valid_times(self, cur: Any) -> dict[str, str]:
+        """Latest DDL time per table from the operator-installed event log (§3.1).
+
+        PostgreSQL keeps no DDL timestamp of its own, so this is the only route to a real
+        valid time — and it is the *strongest* kind RSA can get, because a
+        ``ddl_command_end`` trigger fires on DDL and nothing else. Where Snowflake's
+        ``LAST_ALTERED`` has to be second-guessed, an event row is proof.
+
+        Silent by design when the table is absent or unreadable: that is the overwhelmingly
+        common case (no operator has installed it), it is not an error, and the resolver
+        records ``observed`` instead. RSA needs only ``SELECT`` on this table.
+
+        ``object_identity`` is schema-qualified (``public.orders``), so matching strips the
+        schema and any trailing argument list Postgres appends for non-table objects.
+        """
+        if not self.ddl_history_table:
+            return {}
+        table = _safe_relation(self.ddl_history_table)
+        out: dict[str, str] = {}
+        try:
+            cur.execute(
+                f"""
+                SELECT object_identity, MAX(occurred_at) AS changed_at
+                FROM {table}
+                WHERE schema_name = %s
+                GROUP BY object_identity
+                """,  # noqa: S608 - relation name validated by _safe_relation
+                (self.schema_name,),
+            )
+            for row in cur.fetchall() or []:
+                identity = str(row["object_identity"] or "")
+                bare = identity.split("(", 1)[0].strip()
+                name = bare.rsplit(".", 1)[-1].strip('"')
+                stamp = _iso(row["changed_at"])
+                if name and stamp:
+                    out[name] = stamp
+        except Exception as err:  # noqa: BLE001 - the log is optional, not expected
+            logger.debug("postgres_ddl_history_unavailable", error=str(err))
+            # A failed read may have aborted the surrounding transaction; recover so the
+            # rest of introspection proceeds.
+            try:
+                cur.connection.rollback()
+            except Exception:  # noqa: BLE001
+                pass
+        return out
 
     def open_session(self) -> "PostgresSession":
         """Open a REPEATABLE READ read-only session for streaming / dumps."""

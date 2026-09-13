@@ -18,6 +18,11 @@ from __future__ import annotations
 __version__ = "0.7.2"
 
 from .analyzer import Analysis, RelationalSchemaAnalyzer
+from .bitemporal import (
+    PriorRun,
+    bitemporal_metadata,
+    stamp_bitemporal,
+)
 from .discriminator import DiscriminatorCandidate, DiscriminatorOptions, detect_discriminators
 from .samplers import (
     executor_from_connection,
@@ -97,6 +102,10 @@ __all__ = [
     "overlay_applied",
     "overlay_summary",
     "OverlayError",
+    # Bitemporal stamping (valid time + transaction time)
+    "stamp_bitemporal",
+    "PriorRun",
+    "bitemporal_metadata",
     # Phase 2 — conceptual model + baseline
     "RelationalSchemaAnalyzer",
     "DiscriminatorCandidate",

@@ -97,7 +97,7 @@ See:
 - [`docs/DESIGN.md`](docs/DESIGN.md) — architecture, data model, tool contract, OWL mapping
 - [`docs/IMPLEMENTATION-PLAN.md`](docs/IMPLEMENTATION-PLAN.md) — phased delivery plan & extraction inventory
 - [`docs/DESIGN-ADDENDUM-taxonomy.md`](docs/DESIGN-ADDENDUM-taxonomy.md) — class-abstraction discovery
-- [`docs/DESIGN-ADDENDUM-bitemporal.md`](docs/DESIGN-ADDENDUM-bitemporal.md) — bitemporal stamping of physical schemas (proposed)
+- [`docs/DESIGN-ADDENDUM-bitemporal.md`](docs/DESIGN-ADDENDUM-bitemporal.md) — bitemporal stamping of physical schemas
 
 **Class abstractions (0.6.0).** Beyond the baseline's shared-PK `subClassOf`
 inference, RSA discovers type-discriminator columns and hands the assembled

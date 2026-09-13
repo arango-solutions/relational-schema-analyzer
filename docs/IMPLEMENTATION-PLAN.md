@@ -316,7 +316,7 @@ projection — the whole core (Phases 0–5) landed together in the first releas
   probes, so a real-sampler test against either passes for the wrong reason —
   `_safe_probe` swallows the error and the sampling detectors emit nothing.
 
-- **Unreleased on `main`** — **bitemporal stamping** (`bitemporal.py`,
+- **v0.8.0** — **bitemporal stamping** (`bitemporal.py`,
   `docs/DESIGN-ADDENDUM-bitemporal.md`): every schema records when RSA observed it
   (transaction time) and when the definition became true of the source (valid time), with a
   `valid_time_source` saying how the date was obtained. Valid time is capturable only at
@@ -324,7 +324,11 @@ projection — the whole core (Phases 0–5) landed together in the first releas
   storing: `schema_diff` stays pure and history remains the temporal store's job. Catalog
   dates are gated by the fingerprint, which is now explicitly structure-only, so Snowflake's
   `LAST_ALTERED` moving on DML cannot fake a schema change. Additive: unstamped schemas
-  serialize byte-identically to before.
+  serialize byte-identically to before. Reachable from the CLI (`--prior-run`), the tool
+  contract and MCP (`input.previousAnalysis` — the field the shared contract already
+  declared, so RSA and `arango-schema-analyzer` converge rather than fork). Also fixes
+  pre-existing request-contract drift: the published request schema described an entrypoint
+  RSA does not have, so every real request was invalid against RSA's own contract.
 
 Planned next:
 

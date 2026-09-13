@@ -55,6 +55,8 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
+from ..bitemporal import CATALOG
+from ..bitemporal import to_iso as _iso
 from ..log import get_logger
 from ..types import Column, ForeignKey, Schema, SourceProvenance, Table
 
@@ -152,12 +154,58 @@ class SnowflakeConnector:
         finally:
             cur.close()
 
+        valid_times = self._valid_times(conn)
+
         for name, table_type, comment in table_rows:
-            schema.tables[name] = self._process_table(
+            table = self._process_table(
                 conn, name, is_view=(table_type == "VIEW"), comment=comment
             )
+            if name in valid_times:
+                table.valid_from = valid_times[name]
+                table.valid_time_source = CATALOG
+            schema.tables[name] = table
 
         return schema
+
+    def _valid_times(self, conn: Any) -> dict[str, str]:
+        """``LAST_ALTERED`` per table, for bitemporal valid time (addendum §3).
+
+        Issued separately from the table sweep, and best-effort, so a catalog that will not
+        answer costs a date rather than the whole introspection.
+
+        **This value is not trustworthy on its own.** Snowflake moves ``LAST_ALTERED`` on
+        DML as well as DDL, so a table that was merely inserted into looks freshly altered.
+        It is recorded as ``catalog`` and then gated by the fingerprint rule in
+        ``bitemporal.stamp_bitemporal`` — which discards it when the structure did not
+        actually change. Capturing it here and judging it there keeps the connector honest
+        about what the catalog said and the resolver responsible for what to believe.
+        """
+        out: dict[str, str] = {}
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                f"""
+                SELECT TABLE_NAME, COALESCE(LAST_ALTERED, CREATED)
+                FROM {self._database}.INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_SCHEMA = %s
+                """,
+                (self.schema_name,),
+            )
+            for name, altered in cur.fetchall():
+                # `_iso` returns None for placeholder dates (epoch zero), so guard on its
+                # result rather than on the raw value — otherwise a placeholder would be
+                # recorded as a `catalog` source with no date behind it.
+                stamp = _iso(altered)
+                if stamp:
+                    out[name] = stamp
+        except Exception as err:  # noqa: BLE001 - valid time is best-effort
+            logger.warning("snowflake_valid_time_failed", error=str(err))
+        finally:
+            try:
+                cur.close()
+            except Exception:  # noqa: BLE001
+                pass
+        return out
 
     def _provenance(self, conn: Any) -> SourceProvenance:
         version: Optional[str] = None

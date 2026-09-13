@@ -32,6 +32,8 @@ from collections import OrderedDict
 from typing import Any, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
+from ..bitemporal import CATALOG
+from ..bitemporal import to_iso as _iso
 from ..log import get_logger
 from ..types import Column, ForeignKey, Schema, SourceProvenance, Table
 
@@ -133,6 +135,7 @@ class DatabricksConnector:
 
         columns_by_table = self._columns_by_table(cur, info, schema)
         pks, uniques, fks = self._constraints(cur, info, schema)
+        valid_times = self._valid_times(cur, info, schema)
 
         for name, table_type, comment in self._rows(
             cur,
@@ -144,7 +147,7 @@ class DatabricksConnector:
             # and EXTERNAL_SHALLOW_CLONE — note it never emits ANSI's "BASE
             # TABLE". Only the two view kinds are query-defined; FOREIGN
             # (federated) and the clones are ordinary tables.
-            result.tables[name] = self._build_table(
+            table = self._build_table(
                 table_name=name,
                 is_view=(str(table_type).upper() in ("VIEW", "MATERIALIZED_VIEW")),
                 comment=comment,
@@ -153,7 +156,38 @@ class DatabricksConnector:
                 unique_sets=uniques.get(name, []),
                 fks=fks.get(name, []),
             )
+            if name in valid_times:
+                table.valid_from = valid_times[name]
+                table.valid_time_source = CATALOG
+            result.tables[name] = table
         return result
+
+    def _valid_times(self, cur: Any, info: str, schema: str) -> dict[str, str]:
+        """``last_altered`` per table, for bitemporal valid time (addendum §3).
+
+        Databricks documents this as DDL-scoped, so it is the signal the addendum wants.
+        It is still routed through the §2.3 fingerprint rule defensively: "documented as"
+        and "observed to be" are different claims, and the rule costs nothing when the
+        catalog is telling the truth.
+
+        Delta's ``DESCRIBE HISTORY`` would give per-operation dating and could distinguish
+        DDL from DML directly, but it needs privileges beyond the read-only role RSA
+        connects as — deliberately deferred (addendum §5, open question 2).
+        """
+        out: dict[str, str] = {}
+        try:
+            rows = self._rows(
+                cur,
+                "SELECT table_name, COALESCE(last_altered, created) "
+                f"FROM {info}.tables WHERE table_schema = '{schema}'",
+            )
+            for name, altered in rows:
+                stamp = _iso(altered)
+                if stamp:
+                    out[name] = stamp
+        except Exception as err:  # noqa: BLE001 - valid time is best-effort
+            logger.warning("databricks_valid_time_failed", error=str(err))
+        return out
 
     def _provenance(self, cur: Any) -> SourceProvenance:
         version: Optional[str] = None

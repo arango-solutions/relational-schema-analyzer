@@ -1,6 +1,6 @@
 # Design addendum — bitemporal stamping of physical schemas
 
-**Status:** PROPOSED (2026-09-11). Companion to `arango-schema-analyzer/docs/PRD.md`
+**Status:** IMPLEMENTED (2026-09-12, RSA `bitemporal.py`). Companion to `arango-schema-analyzer/docs/PRD.md`
 §3.13.5 (the ArangoDB-side twin of this requirement) and to
 `contextual-data-fabric/docs/research/unified-ontology-mapping-architecture.md`
 (§7.3, §8.1, Q-3 and sequence step 7 — the decision this addendum implements).
@@ -153,12 +153,84 @@ RSA connects as needs `SELECT` on that table and nothing more.
   the §3.1 trigger yields `event`, without it `observed`.
 - Tool contract: `metadata` validates with and without the four new keys.
 
+## 4.1 What implementation changed or added
+
+Three things surfaced that the requirement did not anticipate.
+
+**The fingerprint had to be made temporal-free, and that is load-bearing.** §2.3 trusts a
+catalog timestamp only when the fingerprint changed — but `fingerprint_physical_schema`
+hashes the whole serialized schema, so once temporal fields existed on the model the
+fingerprint would have differed on every run. Every catalog date would then be "trusted",
+and the Snowflake protection the rule exists for would never fire. The fingerprint now
+excludes both schema- and table-level temporal fields, which also means a stamped schema
+fingerprints identically to the unstamped one it came from. Tested directly
+(`TestFingerprintIsStructureOnly`).
+
+**Placeholder timestamps are rejected.** Running the Snowflake path against the emulator
+produced `valid_from: 1970-01-01` sourced as `catalog` — the driver returns epoch zero for
+"no value". A fabricated 1970 date presented as catalog-sourced is worse than no date, so
+`to_iso` discards anything before 1990 and the table falls through to `observed`.
+
+**§3.1's reference trigger executes as published.** It had never been run. It is now
+exercised in `tests/integration/test_bitemporal_postgres.py`: DDL is logged and dated, an
+`ALTER` dates later than an earlier `CREATE`, and an `INSERT` produces no row — the
+DDL-scoping the design depends on. That test also demonstrates §2.2's weakest-source rule
+on real data, because `rsa_ddl_history` predates its own trigger and so is `observed`,
+which correctly pulls the schema-level source down from `event`.
+
+Also implemented beyond the letter of §2: the MySQL caveat travels on each table as
+`extra.validTimeCaveat` rather than living only in documentation, since a consumer reading
+`catalog` is entitled to know the date may be early.
+
+### 4.2 Request-contract drift found while wiring this — fixed
+
+`run_tool` requests had **never** validated against the published
+`docs/tool-contract/v1/request.schema.json`, and nothing tested that they did. The schema was
+copied from the ArangoDB analyzer and only partly adapted, so it described an entrypoint RSA
+does not have. Three defects, all of which made *every* real RSA request invalid against
+RSA's own contract:
+
+1. the root is `additionalProperties: false` and never declared `source`, the relational
+   connection descriptor the entrypoint actually takes;
+2. an `allOf` conditional required `connection` for `analyze` / `snapshot`;
+3. the export operations required `input.analysis`, which this entrypoint never reads —
+   RSA's `owl` / `r2rml` run from a live `source` or a captured `input.physical`.
+
+Fixed by declaring `source` and `input.physical`, and rewriting the conditionals so every
+operation requires *something to read* (`source`, `input.physical`, or the shared
+`connection`) rather than naming the Arango one. `connection` is retained, so the schema
+still accepts the shape it shares with `arango-schema-analyzer`.
+
+Guarded by `tests/test_tool.py::TestRequestsValidateAgainstThePublishedSchema`, which
+validates every request shape the entrypoint accepts. That is the cheaper half of the fix: it
+cannot catch a malformed *caller*, only the schema and the entrypoint drifting apart again.
+ASA validates requests at call time and caught its own bug that way. Doing the same here
+would be stronger and is the obvious follow-up, but it changes runtime behaviour for a
+shipped entrypoint — `additionalProperties: false` would start rejecting callers that pass
+extra keys — so it is a deliberate decision rather than a tidy-up.
+
+`arango-schema-analyzer` does **not** share this drift: its schema matches its entrypoint and
+it validates requests (verified 2026-09-12).
+
 ## 5. Open questions
 
 1. **MySQL under-dating.** Accept the `warnings[]` entry, or add an optional
    `performance_schema` / binlog-based source in a later increment?
 2. **Databricks Delta history.** `DESCRIBE HISTORY` gives per-operation timestamps that
    would allow DDL-scoped dating for Delta tables; is the extra privilege worth it?
-3. **Where the prior run comes from.** RSA is stateless, so the caller (r2g, AOE, CDF's
-   catalog builder) supplies the prior `metadata`. Should RSA define a tiny
-   `PriorRun` input type for that, mirroring ASA's `analyze_incremental` contract?
+3. **Where the prior run comes from.** ~~Should RSA define a tiny `PriorRun` input type?~~
+   **Resolved: yes.** `bitemporal.PriorRun` with `PriorRun.from_metadata()`, which accepts a
+   whole prior bundle or a bare metadata block and returns `None` when there is no
+   fingerprint to compare — so an unusable prior behaves exactly like no prior.
+
+   **Exposed on every surface, not just the CLI** (`--prior-run FILE`, and
+   `input.previousAnalysis` on the tool contract and MCP). The first implementation wired
+   only the CLI, which would have left `fingerprint-continuity` unreachable for AOE and the
+   fabric's catalog builder — the consumers that commissioned this — because they call
+   `run_tool`, not the CLI. Caught by `arango-schema-analyzer`'s review, which found the
+   identical gap in its own `analyze_incremental`.
+
+   The contract field is deliberately **not** a new name: `input.previousAnalysis` is
+   already declared in the shared request schema, and `input` is
+   `additionalProperties: false`, so a minted `priorRun` would have been rejected by any
+   validating consumer. Both analyzers should use it.

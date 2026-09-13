@@ -53,10 +53,20 @@ from pathlib import Path
 from typing import Any, Iterator, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
+from ..bitemporal import CATALOG
+from ..bitemporal import to_iso as _iso
 from ..log import get_logger
 from ..types import CheckConstraint, Column, ForeignKey, Schema, SourceProvenance, Table
 
 logger = get_logger(__name__)
+
+#: Attached to every MySQL table carrying a `catalog` valid time. `CREATE_TIME` does not
+#: move on `ALTER`, so the date is a lower bound, and the fingerprint rule cannot correct
+#: an under-date — it only discards dates that are too fresh (addendum §3, open question 1).
+MYSQL_VALID_TIME_CAVEAT = (
+    "MySQL CREATE_TIME does not advance on ALTER; valid_from is a lower bound for tables "
+    "altered after creation."
+)
 
 _DEFAULT_SCHEMA_SENTINELS = frozenset({None, "", "public", "PUBLIC"})
 
@@ -212,15 +222,58 @@ class MySQLConnector:
             )
             table_rows = cur.fetchall()
 
+        valid_times = self._valid_times(conn)
+
         for row in table_rows:
             name = row["TABLE_NAME"]
-            schema.tables[name] = self._process_table(
+            table = self._process_table(
                 conn,
                 name,
                 is_view=(row.get("TABLE_TYPE") == "VIEW"),
                 comment=row.get("TABLE_COMMENT"),
             )
+            if name in valid_times:
+                table.valid_from = valid_times[name]
+                table.valid_time_source = CATALOG
+                # The limitation travels with the data rather than living only in a doc,
+                # because a consumer reading `catalog` is entitled to know it may be early.
+                table.extra.setdefault("validTimeCaveat", MYSQL_VALID_TIME_CAVEAT)
+            schema.tables[name] = table
         return schema
+
+    def _valid_times(self, conn: Any) -> dict[str, str]:
+        """``CREATE_TIME`` per table, for bitemporal valid time (addendum §3).
+
+        The weakest catalog signal RSA reads, and the one the fingerprint rule cannot
+        rescue. MySQL does **not** move ``CREATE_TIME`` on ``ALTER``, so a table altered
+        after creation is dated *earlier* than the truth. The §2.3 rule only ever discards
+        a date that is too fresh; nothing can detect one that is too old.
+
+        ``UPDATE_TIME`` is not a substitute — it tracks DML, which is the opposite problem,
+        and on InnoDB it is frequently NULL besides.
+
+        So the value is recorded as ``catalog`` with an explicit caveat attached to each
+        table (``extra.validTimeCaveat``), and consumers that need exact DDL dating on MySQL
+        should treat it as a lower bound.
+        """
+        out: dict[str, str] = {}
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT TABLE_NAME, CREATE_TIME
+                    FROM information_schema.TABLES
+                    WHERE TABLE_SCHEMA = %s
+                    """,
+                    (self.schema_name,),
+                )
+                for row in cur.fetchall() or []:
+                    stamp = _iso(row.get("CREATE_TIME"))
+                    if stamp:
+                        out[row["TABLE_NAME"]] = stamp
+        except Exception as err:  # noqa: BLE001 - valid time is best-effort
+            logger.warning("mysql_valid_time_failed", error=str(err))
+        return out
 
     def _process_table(
         self, conn: Any, table_name: str, *, is_view: bool = False, comment: Any = None

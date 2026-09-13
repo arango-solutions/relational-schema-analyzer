@@ -24,6 +24,8 @@ from pathlib import Path
 from typing import Any
 
 from ..log import get_logger
+from ..bitemporal import FILE
+from ..bitemporal import to_iso as _iso
 from ..types import CheckConstraint, Column, ForeignKey, Schema, SourceProvenance, Table
 
 logger = get_logger(__name__)
@@ -121,8 +123,18 @@ class DbtManifestConnector:
             self._parse_test(node, accs, name_by_uid)
 
         schema = Schema(source=self._provenance(manifest))
+        generated_at = _iso((manifest.get('metadata') or {}).get('generated_at'))
         for acc in accs.values():
-            schema.tables[acc.name] = self._finalize(acc)
+            table = self._finalize(acc)
+            # Bitemporal valid time (addendum §3): the manifest's own `generated_at`.
+            # Reported as `file`, not `catalog` — it dates *the manifest*, i.e. when dbt
+            # last compiled, which is not when the warehouse table changed. The two drift
+            # apart the moment a compile lags a migration, so claiming `catalog` here would
+            # be a more precise-sounding lie.
+            if generated_at:
+                table.valid_from = generated_at
+                table.valid_time_source = FILE
+            schema.tables[acc.name] = table
         return schema
 
     def _provenance(self, manifest: dict[str, Any]) -> SourceProvenance:

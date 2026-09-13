@@ -18,6 +18,17 @@ from pydantic import BaseModel, Field, computed_field, model_serializer, model_v
 
 from .typemap import normalized_type_category
 
+#: Temporal fields on :class:`Table` / :class:`PhysicalSchema`. Named once because three
+#: things must agree about them: serialization omits them when unset, the fingerprint
+#: excludes them always, and the bitemporal resolver writes them.
+TABLE_TEMPORAL_FIELDS: tuple[str, ...] = ("valid_from", "valid_time_source")
+SCHEMA_TEMPORAL_FIELDS: tuple[str, ...] = (
+    "transaction_time",
+    "valid_from",
+    "valid_time_source",
+    "predecessor_fingerprint",
+)
+
 
 class ForeignKey(BaseModel):
     """A foreign key constraint, supporting both single- and multi-column FKs.
@@ -159,12 +170,26 @@ class Table(BaseModel):
     # Omitted from serialization when empty so existing dumps / fingerprints are
     # unchanged for schemas that don't use it.
     extra: Dict[str, Any] = Field(default_factory=dict)
+    # Bitemporal valid time (DESIGN-ADDENDUM-bitemporal §2.1): when this table's current
+    # definition became true *of the source*, as distinct from when RSA observed it.
+    # Only introspection can know this — nothing downstream can reconstruct when a table
+    # was altered — so RSA records it. RSA never *stores* history; that is the temporal
+    # store's job. ``valid_time_source`` says how the date was come by (§2.2), because a
+    # date whose provenance is unknown is not auditable.
+    valid_from: Optional[str] = None
+    valid_time_source: Optional[str] = None
 
     @model_serializer(mode="wrap")
     def _serialize(self, handler: Any) -> dict[str, Any]:
         data = handler(self)
         if not data.get("extra"):
             data.pop("extra", None)
+        # Omitted when unset, like ``extra``: an unstamped schema serializes exactly as it
+        # did before this feature existed, so r2g's re-import promise (DESIGN §3.1) and
+        # every committed golden dump are untouched.
+        for key in TABLE_TEMPORAL_FIELDS:
+            if data.get(key) is None:
+                data.pop(key, None)
         return data
 
 
@@ -180,6 +205,29 @@ class SourceProvenance(BaseModel):
 class PhysicalSchema(BaseModel):
     tables: Dict[str, Table] = {}
     source: Optional[SourceProvenance] = None
+    # Bitemporal stamping (DESIGN-ADDENDUM-bitemporal §2.1). All default ``None`` and are
+    # omitted from serialization when unset, so an unstamped schema is byte-identical to
+    # one produced before this feature.
+    #
+    # These are deliberately **excluded from ``physicalSchemaFingerprint``**
+    # (see ``metadata.fingerprint_physical_schema``). The fingerprint answers "is this the
+    # same schema?", which must depend on structure alone — and §2.3's safety rule leans on
+    # that: a catalog timestamp is trusted only when the fingerprint *changed*. Were the
+    # observation time inside the hash, the fingerprint would differ on every run, the rule
+    # would trust every catalog date, and the Snowflake-DML protection it exists for would
+    # be gone.
+    transaction_time: Optional[str] = None   # when RSA observed the schema
+    valid_from: Optional[str] = None         # max(table.valid_from) over stamped tables
+    valid_time_source: Optional[str] = None  # the *weakest* source among those tables
+    predecessor_fingerprint: Optional[str] = None
+
+    @model_serializer(mode="wrap")
+    def _serialize(self, handler: Any) -> dict[str, Any]:
+        data = handler(self)
+        for key in SCHEMA_TEMPORAL_FIELDS:
+            if data.get(key) is None:
+                data.pop(key, None)
+        return data
 
     def save_to_file(self, path: str) -> None:
         with open(path, "w") as f:

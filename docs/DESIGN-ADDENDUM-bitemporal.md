@@ -182,6 +182,16 @@ Also implemented beyond the letter of §2: the MySQL caveat travels on each tabl
 `extra.validTimeCaveat` rather than living only in documentation, since a consumer reading
 `catalog` is entitled to know the date may be early.
 
+### 4.2 Unrelated contract drift found while wiring this
+
+`run_tool` requests have **never** validated against the published
+`docs/tool-contract/v1/request.schema.json`, and no test checks that they do. The schema
+still carries `arango-schema-mapper`'s shape — it requires `connection` and declares
+`input.snapshot` — while RSA's entrypoint takes `source` and `input.physical`. Pre-existing
+and out of scope here, but it is the same family of defect as the one above (code and schema
+describing different things), and worth a separate fix: either align the schema to RSA's
+relational variant, or validate requests and discover this the loud way.
+
 ## 5. Open questions
 
 1. **MySQL under-dating.** Accept the `warnings[]` entry, or add an optional
@@ -191,5 +201,16 @@ Also implemented beyond the letter of §2: the MySQL caveat travels on each tabl
 3. **Where the prior run comes from.** ~~Should RSA define a tiny `PriorRun` input type?~~
    **Resolved: yes.** `bitemporal.PriorRun` with `PriorRun.from_metadata()`, which accepts a
    whole prior bundle or a bare metadata block and returns `None` when there is no
-   fingerprint to compare — so an unusable prior behaves exactly like no prior. Exposed on
-   the CLI as `--prior-run FILE`.
+   fingerprint to compare — so an unusable prior behaves exactly like no prior.
+
+   **Exposed on every surface, not just the CLI** (`--prior-run FILE`, and
+   `input.previousAnalysis` on the tool contract and MCP). The first implementation wired
+   only the CLI, which would have left `fingerprint-continuity` unreachable for AOE and the
+   fabric's catalog builder — the consumers that commissioned this — because they call
+   `run_tool`, not the CLI. Caught by `arango-schema-analyzer`'s review, which found the
+   identical gap in its own `analyze_incremental`.
+
+   The contract field is deliberately **not** a new name: `input.previousAnalysis` is
+   already declared in the shared request schema, and `input` is
+   `additionalProperties: false`, so a minted `priorRun` would have been rejected by any
+   validating consumer. Both analyzers should use it.

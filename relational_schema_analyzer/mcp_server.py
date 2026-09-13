@@ -138,7 +138,13 @@ def build_app(*, host: str | None = None, port: int | None = None) -> Any:
     def relational_schema_analyzer_analyze(
         source: dict[str, Any] | None = None, input: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Analyze a source (or a captured ``input.physical``) into the bundle."""
+        """Analyze a source (or a captured ``input.physical``) into the bundle.
+
+        Pass a previous run's bundle as ``input.previousAnalysis`` to enable bitemporal
+        fingerprint-continuity: without it the valid time of an unchanged schema can only be
+        reported as ``observed`` (or an ungated catalog date), never carried back to when the
+        definition actually became true.
+        """
         return run_tool(_typed_request("analyze", source=source, input=input))
 
     @mcp.tool()

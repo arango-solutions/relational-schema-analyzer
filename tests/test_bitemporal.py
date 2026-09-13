@@ -326,3 +326,76 @@ class TestEndToEndThroughTheCli:
         with pytest.raises(SystemExit) as err:
             main(["analyze", "--source", "csv", "--url", str(_CSV_DIR), "--prior-run", str(bad)])
         assert "physicalSchemaFingerprint" in str(err.value)
+
+
+class TestReachableThroughTheToolContract:
+    """The consumers that commissioned bitemporal stamping call `run_tool`, not the CLI.
+
+    Exposing `--prior-run` on the CLI alone would have left `fingerprint-continuity`
+    unreachable for AOE and the fabric's catalog builder — the feature working only for the
+    caller that did not ask for it. Caught by arango-schema-analyzer's review, which found
+    the same gap in itself.
+    """
+
+    def _bundle(self, prior=None):
+        from relational_schema_analyzer import run_tool
+
+        request = {"operation": "analyze", "source": {"type": "csv", "url": str(_CSV_DIR)}}
+        if prior is not None:
+            request["input"] = {"previousAnalysis": prior}
+        response = run_tool(request)
+        assert response["ok"], response.get("error")
+        return response["result"]["analysis"]
+
+    def test_analyze_is_stamped(self):
+        meta = self._bundle()["metadata"]
+        assert meta["transactionTime"]
+        assert meta["validTimeSource"] == FILE
+
+    def test_previous_analysis_enables_continuity(self):
+        first = self._bundle()
+        second = self._bundle(prior=first)["metadata"]
+        assert second["validTimeSource"] == FINGERPRINT_CONTINUITY
+        assert second["predecessorFingerprint"] == first["metadata"]["physicalSchemaFingerprint"]
+        assert second["validTime"]["from"] == first["metadata"]["validTime"]["from"]
+
+    def test_the_field_is_the_one_the_shared_contract_declares(self):
+        """`input` is `additionalProperties: false`, so a minted `priorRun` would be
+        rejected by any validating consumer — and `previousAnalysis` already exists."""
+        import json
+        from pathlib import Path
+
+        schema = json.loads(
+            (Path(__file__).resolve().parent.parent
+             / "docs/tool-contract/v1/request.schema.json").read_text()
+        )
+        input_schema = schema["properties"]["input"]
+        assert input_schema["additionalProperties"] is False
+        assert "previousAnalysis" in input_schema["properties"]
+
+    def test_a_malformed_previous_analysis_is_ignored_not_fatal(self):
+        """An unusable prior behaves as no prior, rather than failing the whole analysis."""
+        meta = self._bundle(prior={"metadata": {"confidence": 1.0}})["metadata"]
+        assert meta["validTimeSource"] == FILE
+        assert "predecessorFingerprint" not in meta
+
+    def test_snapshot_operation_is_stamped_too(self):
+        from relational_schema_analyzer import run_tool
+
+        response = run_tool(
+            {"operation": "snapshot", "source": {"type": "csv", "url": str(_CSV_DIR)}}
+        )
+        assert response["ok"]
+        assert response["result"]["physical"]["transaction_time"]
+
+    def test_a_captured_schema_keeps_its_original_observation_time(self):
+        """Re-reading a snapshot must not re-date it to now — that would record when it was
+        loaded rather than when the source was seen."""
+        from relational_schema_analyzer import run_tool
+
+        captured = run_tool(
+            {"operation": "snapshot", "source": {"type": "csv", "url": str(_CSV_DIR)}}
+        )["result"]["physical"]
+        observed_at = captured["transaction_time"]
+        again = run_tool({"operation": "snapshot", "input": {"physical": captured}})
+        assert again["result"]["physical"]["transaction_time"] == observed_at

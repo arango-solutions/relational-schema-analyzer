@@ -4,40 +4,29 @@
   "title": "ArangoDB Schema Analyzer Tool Request (v1)",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "contractVersion",
-    "operation"
-  ],
+  "required": ["contractVersion", "operation"],
   "properties": {
-    "contractVersion": {
-      "const": "1"
+    "contractVersion": { "const": "1" },
+    "requestId": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "operation": { "type": "string", "enum": ["analyze", "snapshot", "export", "docs", "owl", "r2rml", "diff", "resolve", "csi"] },
+
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "url"],
+      "description": "Relational source to introspect — the relational variant of `connection`. RSA reads SQL catalogs and file/catalog artifacts rather than an ArangoDB endpoint, so the descriptor is a source type plus a DSN or path.",
+      "properties": {
+        "type": { "type": "string", "description": "postgresql | mysql | sqlserver | snowflake | duckdb | databricks | dbt | osi | csv" },
+        "url": { "type": "string", "minLength": 1, "maxLength": 4096, "description": "Connection string / DSN, or a filesystem path for file-backed sources." },
+        "schema": { "type": "string", "description": "Source schema / namespace (default `public`)." },
+        "params": { "type": "object", "description": "Source-specific options, e.g. CSV `delimiter` / `has_header`." }
+      }
     },
-    "requestId": {
-      "type": "string",
-      "minLength": 1,
-      "maxLength": 256
-    },
-    "operation": {
-      "type": "string",
-      "enum": [
-        "analyze",
-        "snapshot",
-        "export",
-        "docs",
-        "owl",
-        "r2rml",
-        "diff",
-        "resolve",
-        "csi"
-      ]
-    },
+
     "connection": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "url",
-        "database"
-      ],
+      "required": ["url", "database"],
       "properties": {
         "url": {
           "type": "string",
@@ -45,145 +34,75 @@
           "maxLength": 2048,
           "description": "ArangoDB URL, e.g. http://localhost:8529. Hosts may be restricted by setting SCHEMA_ANALYZER_ALLOWED_HOSTS in the server environment."
         },
-        "database": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
-        },
-        "username": {
-          "type": "string",
-          "maxLength": 256
-        },
-        "password": {
-          "type": "string",
-          "maxLength": 1024,
-          "description": "Prefer passwordEnvVar in agent workflows."
-        },
-        "passwordEnvVar": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
-        },
-        "verifyTls": {
-          "type": "boolean",
-          "default": true
-        }
+        "database": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "username": { "type": "string", "maxLength": 256 },
+
+        "password": { "type": "string", "maxLength": 1024, "description": "Prefer passwordEnvVar in agent workflows." },
+        "passwordEnvVar": { "type": "string", "minLength": 1, "maxLength": 256 },
+
+        "verifyTls": { "type": "boolean", "default": true }
       },
       "allOf": [
         {
           "not": {
             "allOf": [
-              {
-                "required": [
-                  "password"
-                ]
-              },
-              {
-                "required": [
-                  "passwordEnvVar"
-                ]
-              }
+              { "required": ["password"] },
+              { "required": ["passwordEnvVar"] }
             ]
           }
         }
       ]
     },
+
     "llm": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "provider": {
-          "type": "string",
-          "enum": [
-            "openai",
-            "anthropic",
-            "openrouter"
-          ]
-        },
-        "model": {
-          "type": "string",
-          "maxLength": 256
-        },
-        "apiKey": {
-          "type": "string",
-          "maxLength": 1024,
-          "description": "Prefer apiKeyEnvVar in agent workflows."
-        },
-        "apiKeyEnvVar": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 256
-        },
+        "provider": { "type": "string", "enum": ["openai", "anthropic", "openrouter"] },
+        "model": { "type": "string", "maxLength": 256 },
+
+        "apiKey": { "type": "string", "maxLength": 1024, "description": "Prefer apiKeyEnvVar in agent workflows." },
+        "apiKeyEnvVar": { "type": "string", "minLength": 1, "maxLength": 256 },
+
         "systemPrompt": {
           "type": "string",
           "maxLength": 65536,
           "description": "Optional override; default is strict JSON-only. Hard limit 64 KiB to bound request size."
         },
-        "promptVersion": {
-          "type": "string",
-          "maxLength": 256,
-          "description": "Optional for cache keying/traceability."
-        }
+        "promptVersion": { "type": "string", "maxLength": 256, "description": "Optional for cache keying/traceability." }
       },
       "allOf": [
         {
           "not": {
             "allOf": [
-              {
-                "required": [
-                  "apiKey"
-                ]
-              },
-              {
-                "required": [
-                  "apiKeyEnvVar"
-                ]
-              }
+              { "required": ["apiKey"] },
+              { "required": ["apiKeyEnvVar"] }
             ]
           }
         }
       ]
     },
+
     "analysisOptions": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "timeoutMs": {
-          "type": "integer",
-          "minimum": 1000,
-          "maximum": 600000,
-          "default": 60000
-        },
-        "sampleLimitPerCollection": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 1000,
-          "default": 0
-        },
-        "includeSamplesInSnapshot": {
-          "type": "boolean",
-          "default": false
-        },
+        "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 600000, "default": 60000 },
+        "sampleLimitPerCollection": { "type": "integer", "minimum": 0, "maximum": 1000, "default": 0 },
+        "includeSamplesInSnapshot": { "type": "boolean", "default": false },
         "graphScope": {
           "type": "string",
           "minLength": 1,
           "maxLength": 256,
           "description": "Restrict snapshot/analysis to one ArangoDB named graph's collections (edge collections + their from/to vertices + orphan collections). Bounds cost / LLM egress / focus. INVALID_ARGUMENT if the named graph does not exist. Omit to analyze the whole database (membership of every named graph is still labeled in metadata.graphMembership)."
         },
-        "useCache": {
-          "type": "boolean",
-          "default": true
-        },
+
+        "useCache": { "type": "boolean", "default": true },
         "cache": {
           "type": "object",
           "additionalProperties": false,
           "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "filesystem"
-              ]
-            },
+            "type": { "type": "string", "enum": ["filesystem"] },
             "directory": {
               "type": "string",
               "minLength": 1,
@@ -192,24 +111,11 @@
             }
           }
         },
-        "cacheTtlSeconds": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 31536000,
-          "default": 86400
-        },
-        "reviewThreshold": {
-          "type": "number",
-          "minimum": 0,
-          "maximum": 1,
-          "default": 0.6
-        },
-        "maxRepairAttempts": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 10,
-          "default": 2
-        },
+        "cacheTtlSeconds": { "type": "integer", "minimum": 0, "maximum": 31536000, "default": 86400 },
+
+        "reviewThreshold": { "type": "number", "minimum": 0, "maximum": 1, "default": 0.6 },
+        "maxRepairAttempts": { "type": "integer", "minimum": 0, "maximum": 10, "default": 2 },
+
         "redaction": {
           "type": "object",
           "additionalProperties": false,
@@ -230,26 +136,15 @@
         "goldReference": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Optional gold reference for precision/recall scoring of the conceptual schema (PRD \u00a73.12.3). A domain-pack-style object {entities:[{name}], relationships:[{type}]}. When present, the analyze result's metadata.qualityMetrics gains a 'gold' block and its overlap folds into healthScore.",
+          "description": "Optional gold reference for precision/recall scoring of the conceptual schema (PRD §3.12.3). A domain-pack-style object {entities:[{name}], relationships:[{type}]}. When present, the analyze result's metadata.qualityMetrics gains a 'gold' block and its overlap folds into healthScore.",
           "properties": {
-            "entities": {
-              "type": "array",
-              "maxItems": 50000,
-              "items": {
-                "type": "object"
-              }
-            },
-            "relationships": {
-              "type": "array",
-              "maxItems": 50000,
-              "items": {
-                "type": "object"
-              }
-            }
+            "entities": { "type": "array", "maxItems": 50000, "items": { "type": "object" } },
+            "relationships": { "type": "array", "maxItems": 50000, "items": { "type": "object" } }
           }
         }
       }
     },
+
     "outputOptions": {
       "type": "object",
       "additionalProperties": false,
@@ -265,297 +160,112 @@
           "default": true,
           "description": "When false, tooling.snapshotFingerprint is omitted from the response. Default true preserves existing behavior."
         },
-        "exportTarget": {
-          "type": "string",
-          "enum": [
-            "cypher",
-            "sparql"
-          ],
-          "default": "cypher"
-        },
+        "exportTarget": { "type": "string", "enum": ["cypher", "sparql"], "default": "cypher" },
         "owlFormat": {
           "type": "string",
-          "enum": [
-            "turtle",
-            "jsonld"
-          ],
+          "enum": ["turtle", "jsonld"],
           "default": "turtle",
           "description": "Serialization for the owl operation. 'turtle' returns result.turtle; 'jsonld' returns result.jsonld."
         }
       }
     },
+
     "input": {
       "type": "object",
       "additionalProperties": false,
       "description": "Used for operations that transform existing analysis/snapshot payloads.",
       "properties": {
-        "analysis": {
-          "$ref": "#/$defs/AnalysisOutput"
-        },
-        "previousAnalysis": {
-          "$ref": "#/$defs/AnalysisOutput"
-        },
-        "snapshot": {
-          "$ref": "#/$defs/PhysicalSnapshot"
-        },
-        "physical": {
-          "$ref": "#/$defs/PhysicalSnapshot",
-          "description": "A previously captured PhysicalSchema, as an alternative to introspecting a live `source`. The relational counterpart of `snapshot`."
-        }
-      }
-    },
-    "source": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "type",
-        "url"
-      ],
-      "description": "Relational source to introspect \u2014 the relational variant of `connection`. RSA reads SQL catalogs and file/catalog artifacts rather than an ArangoDB endpoint, so the descriptor is a source type plus a DSN or path.",
-      "properties": {
-        "type": {
-          "type": "string",
-          "description": "postgresql | mysql | sqlserver | snowflake | duckdb | databricks | dbt | osi | csv"
-        },
-        "url": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 4096,
-          "description": "Connection string / DSN, or a filesystem path for file-backed sources."
-        },
-        "schema": {
-          "type": "string",
-          "description": "Source schema / namespace (default `public`)."
-        },
-        "params": {
-          "type": "object",
-          "description": "Source-specific options, e.g. CSV `delimiter` / `has_header`."
-        }
+        "analysis": { "$ref": "#/$defs/AnalysisOutput" },
+        "previousAnalysis": { "$ref": "#/$defs/AnalysisOutput" },
+        "snapshot": { "$ref": "#/$defs/PhysicalSnapshot" },
+        "physical": { "$ref": "#/$defs/PhysicalSnapshot", "description": "A previously captured PhysicalSchema, as an alternative to introspecting a live `source`. The relational counterpart of `snapshot`." }
       }
     }
   },
+
   "$defs": {
     "PhysicalSnapshot": {
       "type": "object",
       "description": "Physical schema snapshot as produced by snapshot_physical_schema(). Hosts that expose this contract to untrusted callers SHOULD enforce a request-body size cap at the transport layer (e.g. a few MiB); the analyzer treats nested fields as trusted snapshot data.",
       "additionalProperties": true
     },
+
     "AnalysisOutput": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "conceptualSchema",
-        "physicalMapping",
-        "metadata"
-      ],
+      "required": ["conceptualSchema", "physicalMapping", "metadata"],
       "properties": {
         "conceptualSchema": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "entities",
-            "relationships",
-            "properties"
-          ],
+          "required": ["entities", "relationships", "properties"],
           "properties": {
-            "entities": {
-              "type": "array",
-              "maxItems": 50000,
-              "items": {
-                "type": "object"
-              }
-            },
-            "relationships": {
-              "type": "array",
-              "maxItems": 50000,
-              "items": {
-                "type": "object"
-              }
-            },
-            "properties": {
-              "type": "array",
-              "maxItems": 100000,
-              "items": {
-                "type": "object"
-              }
-            }
+            "entities": { "type": "array", "maxItems": 50000, "items": { "type": "object" } },
+            "relationships": { "type": "array", "maxItems": 50000, "items": { "type": "object" } },
+            "properties": { "type": "array", "maxItems": 100000, "items": { "type": "object" } }
           }
         },
         "physicalMapping": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "entities",
-            "relationships"
-          ],
+          "required": ["entities", "relationships"],
           "properties": {
-            "entities": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object"
-              }
-            },
-            "relationships": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object"
-              }
-            }
+            "entities": { "type": "object", "additionalProperties": { "type": "object" } },
+            "relationships": { "type": "object", "additionalProperties": { "type": "object" } }
           }
         },
         "metadata": {
           "type": "object",
           "additionalProperties": true,
-          "required": [
-            "confidence",
-            "timestamp",
-            "analyzedCollectionCounts",
-            "detectedPatterns"
-          ],
+          "required": ["confidence", "timestamp", "analyzedCollectionCounts", "detectedPatterns"],
           "properties": {
-            "confidence": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
-            },
-            "timestamp": {
-              "type": "string",
-              "maxLength": 64
-            },
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "timestamp": { "type": "string", "maxLength": 64 },
             "analyzedCollectionCounts": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "documentCollections",
-                "edgeCollections"
-              ],
+              "required": ["documentCollections", "edgeCollections"],
               "properties": {
-                "documentCollections": {
-                  "type": "number",
-                  "minimum": 0
-                },
-                "edgeCollections": {
-                  "type": "number",
-                  "minimum": 0
-                }
+                "documentCollections": { "type": "number", "minimum": 0 },
+                "edgeCollections": { "type": "number", "minimum": 0 }
               }
             },
-            "detectedPatterns": {
-              "type": "array",
-              "maxItems": 1000,
-              "items": {
-                "type": "string",
-                "maxLength": 256
-              }
-            },
-            "warnings": {
-              "type": "array",
-              "maxItems": 1000,
-              "items": {
-                "type": "string",
-                "maxLength": 4096
-              }
-            },
-            "assumptions": {
-              "type": "array",
-              "maxItems": 1000,
-              "items": {
-                "type": "string",
-                "maxLength": 4096
-              }
-            }
+            "detectedPatterns": { "type": "array", "maxItems": 1000, "items": { "type": "string", "maxLength": 256 } },
+            "warnings": { "type": "array", "maxItems": 1000, "items": { "type": "string", "maxLength": 4096 } },
+            "assumptions": { "type": "array", "maxItems": 1000, "items": { "type": "string", "maxLength": 4096 } }
           }
         }
       }
     }
   },
+
   "allOf": [
     {
-      "if": {
-        "properties": {
-          "operation": {
-            "enum": [
-              "analyze",
-              "snapshot",
-              "owl",
-              "r2rml"
-            ]
-          }
-        }
-      },
+      "if": { "properties": { "operation": { "enum": ["analyze", "snapshot", "owl", "r2rml"] } } },
       "then": {
+        "description": "Every RSA operation needs something to read: a live `source`, a captured `input.physical`, or the Arango-shaped `connection` this contract shares with arango-schema-analyzer.",
         "anyOf": [
-          {
-            "required": [
-              "source"
-            ]
-          },
-          {
-            "required": [
-              "input"
-            ],
-            "properties": {
-              "input": {
-                "required": [
-                  "physical"
-                ]
-              }
-            }
-          },
-          {
-            "required": [
-              "connection"
-            ]
-          }
-        ],
-        "description": "Every RSA operation needs something to read: a live `source`, a captured `input.physical`, or the Arango-shaped `connection` this contract shares with arango-schema-analyzer."
+          { "required": ["source"] },
+          { "required": ["input"], "properties": { "input": { "required": ["physical"] } } },
+          { "required": ["connection"] }
+        ]
       }
     },
     {
-      "if": {
-        "properties": {
-          "operation": {
-            "enum": [
-              "export",
-              "docs",
-              "resolve",
-              "csi"
-            ]
-          }
-        }
-      },
+      "if": { "properties": { "operation": { "enum": ["export", "docs", "resolve", "csi"] } } },
       "then": {
-        "required": [
-          "input"
-        ],
+        "required": ["input"],
         "properties": {
-          "input": {
-            "required": [
-              "analysis"
-            ]
-          }
+          "input": { "required": ["analysis"] }
         }
       }
     },
     {
-      "if": {
-        "properties": {
-          "operation": {
-            "const": "diff"
-          }
-        }
-      },
+      "if": { "properties": { "operation": { "const": "diff" } } },
       "then": {
-        "required": [
-          "input"
-        ],
+        "required": ["input"],
         "properties": {
-          "input": {
-            "required": [
-              "analysis",
-              "previousAnalysis"
-            ]
-          }
+          "input": { "required": ["analysis", "previousAnalysis"] }
         }
       }
     }

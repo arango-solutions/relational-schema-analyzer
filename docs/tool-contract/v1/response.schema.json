@@ -4,166 +4,78 @@
   "title": "ArangoDB Schema Analyzer Tool Response (v1)",
   "type": "object",
   "additionalProperties": false,
-  "required": [
-    "contractVersion",
-    "operation",
-    "ok"
-  ],
+  "required": ["contractVersion", "operation", "ok"],
   "properties": {
-    "contractVersion": {
-      "const": "1"
-    },
-    "requestId": {
-      "type": "string"
-    },
-    "operation": {
-      "type": "string",
-      "enum": [
-        "analyze",
-        "snapshot",
-        "export",
-        "docs",
-        "owl",
-        "r2rml",
-        "diff",
-        "resolve",
-        "csi"
-      ]
-    },
-    "ok": {
-      "type": "boolean"
-    },
+    "contractVersion": { "const": "1" },
+    "requestId": { "type": "string" },
+    "operation": { "type": "string", "enum": ["analyze", "snapshot", "export", "docs", "owl", "r2rml", "diff", "resolve", "csi"] },
+    "ok": { "type": "boolean" },
+
     "tooling": {
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "libraryVersion": {
-          "type": "string"
-        },
-        "contractVersion": {
-          "type": "string"
-        },
-        "snapshotFingerprint": {
-          "type": "string"
-        },
-        "snapshotVersion": {
-          "type": "integer"
-        },
-        "usedBaseline": {
-          "type": "boolean"
-        },
-        "repairAttempts": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "runId": {
-          "type": "string",
-          "description": "Analysis run UUID when operation was analyze"
-        },
+        "libraryVersion": { "type": "string" },
+        "contractVersion": { "type": "string" },
+        "snapshotFingerprint": { "type": "string" },
+        "snapshotVersion": { "type": "integer" },
+        "usedBaseline": { "type": "boolean" },
+        "repairAttempts": { "type": "integer", "minimum": 0 },
+        "runId": { "type": "string", "description": "Analysis run UUID when operation was analyze" },
         "physicalSchemaFingerprint": {
           "type": "string",
           "description": "SHA-256 of normalized physical snapshot (analyze tooling mirror of metadata)"
         },
-        "cacheHit": {
-          "type": "boolean",
-          "description": "True when analyze result was served from cache"
-        }
+        "cacheHit": { "type": "boolean", "description": "True when analyze result was served from cache" }
       }
     },
+
     "result": {
       "description": "Operation-specific payload.",
       "oneOf": [
-        {
-          "$ref": "#/$defs/AnalyzeResult"
-        },
-        {
-          "$ref": "#/$defs/SnapshotResult"
-        },
-        {
-          "$ref": "#/$defs/ExportResult"
-        },
-        {
-          "$ref": "#/$defs/DocsResult"
-        },
-        {
-          "$ref": "#/$defs/OwlResult"
-        },
-        {
-          "$ref": "#/$defs/DiffResult"
-        },
-        {
-          "$ref": "#/$defs/ResolveResult"
-        },
-        {
-          "$ref": "#/$defs/CsiResult"
-        }
+        { "$ref": "#/$defs/AnalyzeResult" },
+        { "$ref": "#/$defs/SnapshotResult" },
+        { "$ref": "#/$defs/ExportResult" },
+        { "$ref": "#/$defs/DocsResult" },
+        { "$ref": "#/$defs/OwlResult" },
+        { "$ref": "#/$defs/DiffResult" },
+        { "$ref": "#/$defs/ResolveResult" },
+        { "$ref": "#/$defs/CsiResult" }
       ]
     },
+
     "error": {
       "type": "object",
       "additionalProperties": true,
-      "required": [
-        "code",
-        "message"
-      ],
+      "required": ["code", "message"],
       "properties": {
-        "code": {
-          "type": "string",
-          "minLength": 1
-        },
-        "message": {
-          "type": "string",
-          "minLength": 1
-        }
+        "code": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
       }
     }
   },
+
   "$defs": {
     "AnalysisOutput": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "conceptualSchema",
-        "physicalMapping",
-        "metadata"
-      ],
+      "required": ["conceptualSchema", "physicalMapping", "metadata"],
       "properties": {
         "conceptualSchema": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "entities",
-            "relationships",
-            "properties"
-          ],
+          "required": ["entities", "relationships", "properties"],
           "properties": {
             "entities": {
               "type": "array",
               "items": {
                 "type": "object",
-                "required": [
-                  "name"
-                ],
+                "required": ["name"],
                 "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "labels": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "properties": {
-                    "type": "array",
-                    "items": {
-                      "type": "object"
-                    }
-                  },
-                  "source": {
-                    "$ref": "#/$defs/ElementSource"
-                  }
+                  "name": { "type": "string", "minLength": 1 },
+                  "labels": { "type": "array", "items": { "type": "string" } },
+                  "properties": { "type": "array", "items": { "type": "object" } },
+                  "source": { "$ref": "#/$defs/ElementSource" }
                 }
               }
             },
@@ -171,133 +83,56 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "required": [
-                  "type",
-                  "fromEntity",
-                  "toEntity"
-                ],
+                "required": ["type", "fromEntity", "toEntity"],
                 "properties": {
-                  "type": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "fromEntity": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "toEntity": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "properties": {
-                    "type": "array",
-                    "items": {
-                      "type": "object"
-                    }
-                  },
-                  "source": {
-                    "$ref": "#/$defs/ElementSource"
-                  }
+                  "type": { "type": "string", "minLength": 1 },
+                  "fromEntity": { "type": "string", "minLength": 1 },
+                  "toEntity": { "type": "string", "minLength": 1 },
+                  "properties": { "type": "array", "items": { "type": "object" } },
+                  "source": { "$ref": "#/$defs/ElementSource" }
                 }
               }
             },
-            "properties": {
-              "type": "array",
-              "items": {
-                "type": "object"
-              }
-            }
+            "properties": { "type": "array", "items": { "type": "object" } }
           }
         },
         "physicalMapping": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "entities",
-            "relationships"
-          ],
+          "required": ["entities", "relationships"],
           "properties": {
             "shardFamilies": {
               "type": "array",
-              "description": "Groups of structurally-identical entities that share a common name suffix (PRD \u00a76.2 bullet 5). Empty array means detection ran and found none.",
-              "items": {
-                "$ref": "#/$defs/ShardFamily"
-              }
+              "description": "Groups of structurally-identical entities that share a common name suffix (PRD §6.2 bullet 5). Empty array means detection ran and found none.",
+              "items": { "$ref": "#/$defs/ShardFamily" }
             },
             "entities": {
               "type": "object",
               "additionalProperties": {
                 "type": "object",
-                "required": [
-                  "style"
-                ],
+                "required": ["style"],
                 "properties": {
-                  "style": {
-                    "type": "string",
-                    "enum": [
-                      "TABLE"
-                    ]
-                  },
-                  "collectionName": {
-                    "type": "string"
-                  },
-                  "tableName": {
-                    "type": "string"
-                  },
-                  "schemaName": {
-                    "type": "string"
-                  },
-                  "primaryKey": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "typeField": {
-                    "type": "string"
-                  },
-                  "typeValue": {
-                    "type": "string"
-                  },
+                  "style": { "type": "string", "enum": ["TABLE"] },
+                  "collectionName": { "type": "string" },
+                  "tableName": { "type": "string" },
+                  "schemaName": { "type": "string" },
+                  "primaryKey": { "type": "array", "items": { "type": "string" } },
+                  "typeField": { "type": "string" },
+                  "typeValue": { "type": "string" },
                   "indexes": {
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": [
-                        "type",
-                        "fields"
-                      ],
+                      "required": ["type", "fields"],
                       "properties": {
-                        "type": {
-                          "type": "string"
-                        },
-                        "fields": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "unique": {
-                          "type": "boolean"
-                        },
-                        "sparse": {
-                          "type": "boolean"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "vci": {
-                          "type": "boolean"
-                        },
-                        "deduplicate": {
-                          "type": "boolean"
-                        },
-                        "storedValues": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
+                        "type": { "type": "string" },
+                        "fields": { "type": "array", "items": { "type": "string" } },
+                        "unique": { "type": "boolean" },
+                        "sparse": { "type": "boolean" },
+                        "name": { "type": "string" },
+                        "vci": { "type": "boolean" },
+                        "deduplicate": { "type": "boolean" },
+                        "storedValues": { "type": "array", "items": { "type": "string" } }
                       }
                     }
                   },
@@ -305,49 +140,20 @@
                     "type": "object",
                     "additionalProperties": {
                       "type": "object",
-                      "required": [
-                        "field"
-                      ],
+                      "required": ["field"],
                       "properties": {
-                        "field": {
-                          "type": "string"
-                        },
-                        "indexed": {
-                          "type": "boolean"
-                        },
-                        "unique": {
-                          "type": "boolean"
-                        }
+                        "field": { "type": "string" },
+                        "indexed": { "type": "boolean" },
+                        "unique": { "type": "boolean" }
                       }
                     }
                   },
-                  "tenantScope": {
-                    "$ref": "#/$defs/TenantScope"
-                  },
-                  "source": {
-                    "$ref": "#/$defs/ElementSource"
-                  },
-                  "tripleCandidate": {
-                    "type": "boolean"
-                  },
-                  "triple": {
-                    "$ref": "#/$defs/Triple"
-                  },
-                  "graphRagRole": {
-                    "type": "string",
-                    "enum": [
-                      "chunk",
-                      "entity",
-                      "similarity",
-                      "mention"
-                    ]
-                  },
-                  "graphs": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
+                  "tenantScope": { "$ref": "#/$defs/TenantScope" },
+                  "source": { "$ref": "#/$defs/ElementSource" },
+                  "tripleCandidate": { "type": "boolean" },
+                  "triple": { "$ref": "#/$defs/Triple" },
+                  "graphRagRole": { "type": "string", "enum": ["chunk", "entity", "similarity", "mention"] },
+                  "graphs": { "type": "array", "items": { "type": "string" } }
                 }
               }
             },
@@ -355,109 +161,35 @@
               "type": "object",
               "additionalProperties": {
                 "type": "object",
-                "required": [
-                  "style"
-                ],
-                "not": {
-                  "required": [
-                    "collectionName"
-                  ]
-                },
+                "required": ["style"],
+                "not": { "required": ["collectionName"] },
                 "properties": {
-                  "style": {
-                    "type": "string",
-                    "enum": [
-                      "FOREIGN_KEY",
-                      "JOIN_TABLE"
-                    ]
-                  },
-                  "edgeCollectionName": {
-                    "type": "string"
-                  },
-                  "fromTable": {
-                    "type": "string"
-                  },
-                  "fromColumns": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "toTable": {
-                    "type": "string"
-                  },
-                  "toColumns": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "joinTable": {
-                    "type": "string"
-                  },
-                  "joinFromColumns": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "joinToColumns": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "attributeColumns": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "typeField": {
-                    "type": "string"
-                  },
-                  "typeValue": {
-                    "type": "string"
-                  },
+                  "style": { "type": "string", "enum": ["FOREIGN_KEY", "JOIN_TABLE"] },
+                  "edgeCollectionName": { "type": "string" },
+                  "fromTable": { "type": "string" },
+                  "fromColumns": { "type": "array", "items": { "type": "string" } },
+                  "toTable": { "type": "string" },
+                  "toColumns": { "type": "array", "items": { "type": "string" } },
+                  "joinTable": { "type": "string" },
+                  "joinFromColumns": { "type": "array", "items": { "type": "string" } },
+                  "joinToColumns": { "type": "array", "items": { "type": "string" } },
+                  "attributeColumns": { "type": "array", "items": { "type": "string" } },
+                  "typeField": { "type": "string" },
+                  "typeValue": { "type": "string" },
                   "indexes": {
                     "type": "array",
                     "items": {
                       "type": "object",
-                      "required": [
-                        "type",
-                        "fields"
-                      ],
+                      "required": ["type", "fields"],
                       "properties": {
-                        "type": {
-                          "type": "string"
-                        },
-                        "fields": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        },
-                        "unique": {
-                          "type": "boolean"
-                        },
-                        "sparse": {
-                          "type": "boolean"
-                        },
-                        "name": {
-                          "type": "string"
-                        },
-                        "vci": {
-                          "type": "boolean"
-                        },
-                        "deduplicate": {
-                          "type": "boolean"
-                        },
-                        "storedValues": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
-                        }
+                        "type": { "type": "string" },
+                        "fields": { "type": "array", "items": { "type": "string" } },
+                        "unique": { "type": "boolean" },
+                        "sparse": { "type": "boolean" },
+                        "name": { "type": "string" },
+                        "vci": { "type": "boolean" },
+                        "deduplicate": { "type": "boolean" },
+                        "storedValues": { "type": "array", "items": { "type": "string" } }
                       }
                     }
                   },
@@ -465,53 +197,24 @@
                     "type": "object",
                     "additionalProperties": {
                       "type": "object",
-                      "required": [
-                        "field"
-                      ],
+                      "required": ["field"],
                       "properties": {
-                        "field": {
-                          "type": "string"
-                        },
-                        "indexed": {
-                          "type": "boolean"
-                        },
-                        "unique": {
-                          "type": "boolean"
-                        }
+                        "field": { "type": "string" },
+                        "indexed": { "type": "boolean" },
+                        "unique": { "type": "boolean" }
                       }
                     }
                   },
-                  "vci": {
-                    "$ref": "#/$defs/Vci"
-                  },
+                  "vci": { "$ref": "#/$defs/Vci" },
                   "vciCandidate": {
                     "type": "boolean",
-                    "description": "True when a vertex-centric-index pattern (index-level and/or denormalization) was detected for this relationship (PRD \u00a76.1/\u00a76.2). The underlying style is preserved; this is an additive optimization hint."
+                    "description": "True when a vertex-centric-index pattern (index-level and/or denormalization) was detected for this relationship (PRD §6.1/§6.2). The underlying style is preserved; this is an additive optimization hint."
                   },
-                  "source": {
-                    "$ref": "#/$defs/ElementSource"
-                  },
-                  "tripleCandidate": {
-                    "type": "boolean"
-                  },
-                  "triple": {
-                    "$ref": "#/$defs/Triple"
-                  },
-                  "graphRagRole": {
-                    "type": "string",
-                    "enum": [
-                      "chunk",
-                      "entity",
-                      "similarity",
-                      "mention"
-                    ]
-                  },
-                  "graphs": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
+                  "source": { "$ref": "#/$defs/ElementSource" },
+                  "tripleCandidate": { "type": "boolean" },
+                  "triple": { "$ref": "#/$defs/Triple" },
+                  "graphRagRole": { "type": "string", "enum": ["chunk", "entity", "similarity", "mention"] },
+                  "graphs": { "type": "array", "items": { "type": "string" } }
                 }
               }
             }
@@ -520,280 +223,137 @@
         "metadata": {
           "type": "object",
           "additionalProperties": true,
-          "required": [
-            "confidence",
-            "timestamp",
-            "analyzedCollectionCounts",
-            "detectedPatterns"
-          ],
+          "required": ["confidence", "timestamp", "analyzedCollectionCounts", "detectedPatterns"],
           "properties": {
-            "confidence": {
-              "type": "number",
-              "minimum": 0,
-              "maximum": 1
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "timestamp": { "type": "string" },
+
+            "transactionTime": {
+              "type": "string",
+              "description": "ISO-8601 UTC instant at which the source schema was observed (bitemporal transaction time). Unambiguous alias of `timestamp`, which is retained for existing consumers."
             },
-            "timestamp": {
-              "type": "string"
+            "validTime": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["from"],
+              "description": "Bitemporal valid time: when the schema became true of the source, as opposed to when it was observed. No `to` — a version is open-ended at observation, and closing it belongs to the temporal store.",
+              "properties": {
+                "from": { "type": "string" }
+              }
             },
+            "validTimeSource": {
+              "type": "string",
+              "enum": ["catalog", "event", "file", "fingerprint-continuity", "observed"],
+              "description": "How `validTime.from` was determined, strongest to weakest. Always present alongside it, because a date of unknown provenance cannot be audited — in particular `observed` means no signal existed and the observation time was used."
+            },
+            "predecessorFingerprint": {
+              "type": "string",
+              "description": "`physicalSchemaFingerprint` of the prior run the caller supplied, if any. Its equality with this run's fingerprint decides whether a catalog change-timestamp is believed or the earlier `validTime.from` is carried forward."
+            },
+
             "analyzedCollectionCounts": {
               "type": "object",
               "additionalProperties": false,
-              "required": [
-                "documentCollections",
-                "edgeCollections"
-              ],
+              "required": ["documentCollections", "edgeCollections"],
               "properties": {
-                "documentCollections": {
-                  "type": "number",
-                  "minimum": 0
-                },
-                "edgeCollections": {
-                  "type": "number",
-                  "minimum": 0
-                }
+                "documentCollections": { "type": "number", "minimum": 0 },
+                "edgeCollections": { "type": "number", "minimum": 0 }
               }
             },
-            "detectedPatterns": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "warnings": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "assumptions": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
+            "detectedPatterns": { "type": "array", "items": { "type": "string" } },
+            "warnings": { "type": "array", "items": { "type": "string" } },
+            "assumptions": { "type": "array", "items": { "type": "string" } },
             "tenantScopeReport": {
-              "description": "Summary of per-entity tenant-scope classification applied to physicalMapping.entities[*].tenantScope. Null (or absent) when no tenant-root entity was detected \u2014 single-tenant graphs leave it null. Mirrors the null-default convention used by sibling diagnostic blocks (reconciliation, statistics).",
+              "description": "Summary of per-entity tenant-scope classification applied to physicalMapping.entities[*].tenantScope. Null (or absent) when no tenant-root entity was detected — single-tenant graphs leave it null. Mirrors the null-default convention used by sibling diagnostic blocks (reconciliation, statistics).",
               "oneOf": [
-                {
-                  "type": "null"
-                },
+                { "type": "null" },
                 {
                   "type": "object",
                   "additionalProperties": true,
-                  "required": [
-                    "tenantEntity"
-                  ],
+                  "required": ["tenantEntity"],
                   "properties": {
-                    "tenantEntity": {
-                      "type": "string",
-                      "minLength": 1
-                    },
-                    "denormScopedCount": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "traversalScopedCount": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "globalCount": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "tenantFieldRegex": {
-                      "type": "string"
-                    },
+                    "tenantEntity": { "type": "string", "minLength": 1 },
+                    "denormScopedCount": { "type": "integer", "minimum": 0 },
+                    "traversalScopedCount": { "type": "integer", "minimum": 0 },
+                    "globalCount": { "type": "integer", "minimum": 0 },
+                    "tenantFieldRegex": { "type": "string" },
                     "discovery": {
                       "type": "object",
                       "additionalProperties": true,
                       "properties": {
-                        "fromExplicitAnnotation": {
-                          "type": "integer",
-                          "minimum": 0
-                        },
-                        "fromDenormFieldHeuristic": {
-                          "type": "integer",
-                          "minimum": 0
-                        },
-                        "fromTraversalReachability": {
-                          "type": "integer",
-                          "minimum": 0
-                        }
+                        "fromExplicitAnnotation": { "type": "integer", "minimum": 0 },
+                        "fromDenormFieldHeuristic": { "type": "integer", "minimum": 0 },
+                        "fromTraversalReachability": { "type": "integer", "minimum": 0 }
                       }
                     }
                   }
                 }
               ]
             },
-            "shardingProfile": {
-              "$ref": "#/$defs/ShardingProfile"
-            },
+            "shardingProfile": { "$ref": "#/$defs/ShardingProfile" },
             "shardingProfileStatus": {
               "description": "Mirror of shardingProfile.status for callers that only want to branch on ok/degraded without reading the full block. Absent when shardingProfile is absent (snapshot too minimal to classify).",
               "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "ok",
-                    "degraded"
-                  ]
-                }
+                { "type": "null" },
+                { "type": "string", "enum": ["ok", "degraded"] }
               ]
             },
-            "multitenancy": {
-              "$ref": "#/$defs/Multitenancy"
-            },
+            "multitenancy": { "$ref": "#/$defs/Multitenancy" },
             "multitenancyStatus": {
               "description": "Mirror of multitenancy.status for callers that only want to branch on ok/degraded without reading the full block. Absent when multitenancy is absent (snapshot has no user collections).",
               "oneOf": [
-                {
-                  "type": "null"
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "ok",
-                    "degraded"
-                  ]
-                }
+                { "type": "null" },
+                { "type": "string", "enum": ["ok", "degraded"] }
               ]
             },
             "vci": {
-              "description": "Summary of vertex-centric-index detection (PRD \u00a76.1/\u00a76.2): the relationship types for which a VCI pattern was found. Per-relationship detail lives under physicalMapping.relationships[type].vci. Null when no VCI signals were found.",
+              "description": "Summary of vertex-centric-index detection (PRD §6.1/§6.2): the relationship types for which a VCI pattern was found. Per-relationship detail lives under physicalMapping.relationships[type].vci. Null when no VCI signals were found.",
               "oneOf": [
-                {
-                  "type": "null"
-                },
+                { "type": "null" },
                 {
                   "type": "object",
                   "additionalProperties": true,
                   "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "relationships": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "relationships": { "type": "array", "items": { "type": "string" } }
                   }
                 }
               ]
             },
             "rdfTopology": {
-              "description": "RDF-topology (RPT) classification (PRD \u00a76.1/\u00a76.2): whether the schema is stored as RDF triples / rdf:type edges (the TRIPLE mapping style). Triple/type collections are also annotated under physicalMapping with tripleCandidate=true. Null when the snapshot has no collections to classify.",
+              "description": "RDF-topology (RPT) classification (PRD §6.1/§6.2): whether the schema is stored as RDF triples / rdf:type edges (the TRIPLE mapping style). Triple/type collections are also annotated under physicalMapping with tripleCandidate=true. Null when the snapshot has no collections to classify.",
               "oneOf": [
-                {
-                  "type": "null"
-                },
+                { "type": "null" },
                 {
                   "type": "object",
                   "additionalProperties": true,
                   "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "isRdfTopology": {
-                      "type": "boolean"
-                    },
-                    "tripleCollections": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                      }
-                    },
-                    "typeEdges": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                      }
-                    },
-                    "evidence": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "isRdfTopology": { "type": "boolean" },
+                    "tripleCollections": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                    "typeEdges": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                    "evidence": { "type": "array", "items": { "type": "string" } }
                   }
                 }
               ]
             },
             "graphRag": {
-              "description": "GraphRAG template classification (PRD \u00a76.2): whether the schema is a retrieval-augmented-generation graph (text chunks with embeddings + extracted entities + similarity/mention edges + vector indexes). Participating physicalMapping entries are tagged graphRagRole (chunk/entity/similarity/mention). isGraphRag is only true when >=2 signal categories fire. Null when the snapshot has no collections to classify.",
+              "description": "GraphRAG template classification (PRD §6.2): whether the schema is a retrieval-augmented-generation graph (text chunks with embeddings + extracted entities + similarity/mention edges + vector indexes). Participating physicalMapping entries are tagged graphRagRole (chunk/entity/similarity/mention). isGraphRag is only true when >=2 signal categories fire. Null when the snapshot has no collections to classify.",
               "oneOf": [
-                {
-                  "type": "null"
-                },
+                { "type": "null" },
                 {
                   "type": "object",
                   "additionalProperties": true,
                   "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "isGraphRag": {
-                      "type": "boolean"
-                    },
-                    "confidence": {
-                      "type": "string",
-                      "enum": [
-                        "low",
-                        "medium",
-                        "high"
-                      ]
-                    },
-                    "chunkCollections": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "entityCollections": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "similarityEdges": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "mentionEdges": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    },
-                    "vectorIndexes": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "additionalProperties": true
-                      }
-                    },
-                    "evidence": {
-                      "type": "array",
-                      "items": {
-                        "type": "string"
-                      }
-                    }
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "isGraphRag": { "type": "boolean" },
+                    "confidence": { "type": "string", "enum": ["low", "medium", "high"] },
+                    "chunkCollections": { "type": "array", "items": { "type": "string" } },
+                    "entityCollections": { "type": "array", "items": { "type": "string" } },
+                    "similarityEdges": { "type": "array", "items": { "type": "string" } },
+                    "mentionEdges": { "type": "array", "items": { "type": "string" } },
+                    "vectorIndexes": { "type": "array", "items": { "type": "object", "additionalProperties": true } },
+                    "evidence": { "type": "array", "items": { "type": "string" } }
                   }
                 }
               ]
@@ -801,34 +361,15 @@
             "graphMembership": {
               "description": "Named-graph membership: which named graph(s) each entity/relationship belongs to (also tagged per-entry under physicalMapping[*].graphs) plus an 'ungraphed' bucket for collections outside any named graph. Membership is many-to-many. Null when the database has no named graphs.",
               "oneOf": [
-                {
-                  "type": "null"
-                },
+                { "type": "null" },
                 {
                   "type": "object",
                   "additionalProperties": true,
                   "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "ok"
-                      ]
-                    },
-                    "graphCount": {
-                      "type": "integer",
-                      "minimum": 0
-                    },
-                    "graphs": {
-                      "type": "object",
-                      "additionalProperties": {
-                        "type": "object",
-                        "additionalProperties": true
-                      }
-                    },
-                    "ungraphed": {
-                      "type": "object",
-                      "additionalProperties": true
-                    }
+                    "status": { "type": "string", "enum": ["ok"] },
+                    "graphCount": { "type": "integer", "minimum": 0 },
+                    "graphs": { "type": "object", "additionalProperties": { "type": "object", "additionalProperties": true } },
+                    "ungraphed": { "type": "object", "additionalProperties": true }
                   }
                 }
               ]
@@ -838,38 +379,19 @@
               "type": "object",
               "additionalProperties": true,
               "properties": {
-                "structural": {
-                  "type": "object",
-                  "additionalProperties": true
-                },
-                "grounding": {
-                  "type": "object",
-                  "additionalProperties": true
-                },
+                "structural": { "type": "object", "additionalProperties": true },
+                "grounding": { "type": "object", "additionalProperties": true },
                 "gold": {
                   "type": "object",
                   "additionalProperties": true,
-                  "description": "Precision/recall/F1 of the conceptual schema vs a supplied gold reference (PRD \u00a73.12.3). Present only when analysisOptions.goldReference was provided.",
+                  "description": "Precision/recall/F1 of the conceptual schema vs a supplied gold reference (PRD §3.12.3). Present only when analysisOptions.goldReference was provided.",
                   "properties": {
-                    "entities": {
-                      "type": "object",
-                      "additionalProperties": true
-                    },
-                    "relationships": {
-                      "type": "object",
-                      "additionalProperties": true
-                    },
-                    "overlap": {
-                      "type": "number"
-                    }
+                    "entities": { "type": "object", "additionalProperties": true },
+                    "relationships": { "type": "object", "additionalProperties": true },
+                    "overlap": { "type": "number" }
                   }
                 },
-                "healthScoreComponents": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "type": "number"
-                  }
-                }
+                "healthScoreComponents": { "type": "object", "additionalProperties": { "type": "number" } }
               }
             },
             "healthScore": {
@@ -877,56 +399,20 @@
               "type": "integer",
               "minimum": 0,
               "maximum": 100
-            },
-            "transactionTime": {
-              "type": "string",
-              "description": "ISO-8601 UTC instant at which the source schema was observed (bitemporal transaction time). Unambiguous alias of `timestamp`, which is retained for existing consumers."
-            },
-            "validTime": {
-              "type": "object",
-              "additionalProperties": false,
-              "required": [
-                "from"
-              ],
-              "description": "Bitemporal valid time: when the schema became true of the source, as opposed to when it was observed. No `to`: a version is open-ended at observation, and closing it belongs to the temporal store.",
-              "properties": {
-                "from": {
-                  "type": "string"
-                }
-              }
-            },
-            "validTimeSource": {
-              "type": "string",
-              "enum": [
-                "catalog",
-                "event",
-                "file",
-                "fingerprint-continuity",
-                "observed"
-              ],
-              "description": "How `validTime.from` was determined, strongest to weakest. Always present alongside it, because a date of unknown provenance cannot be audited \u2014 in particular `observed` means no signal existed and the observation time was used."
-            },
-            "predecessorFingerprint": {
-              "type": "string",
-              "description": "`physicalSchemaFingerprint` of the prior run the caller supplied, if any. Its equality with this run's fingerprint is what decides whether a catalog change-timestamp is believed or the earlier `validTime.from` is carried forward."
             }
           }
         }
       }
     },
+
     "ShardingProfile": {
       "description": "Deployment-style classification for the analyzed database. Emitted when snapshot_physical_schema yielded at least one user collection; absent (null) when the snapshot is too minimal to classify. Primary style is exclusive (exactly one of OneShard / DisjointSmartGraph / SmartGraph / SatelliteGraph / Sharded); per-graph and per-collection evidence is always populated so downstream consumers can reason about shard boundaries without re-deriving them.",
       "oneOf": [
-        {
-          "type": "null"
-        },
+        { "type": "null" },
         {
           "type": "object",
           "additionalProperties": true,
-          "required": [
-            "style",
-            "status"
-          ],
+          "required": ["style", "status"],
           "properties": {
             "style": {
               "type": "string",
@@ -938,54 +424,25 @@
                 "Sharded"
               ]
             },
-            "status": {
-              "type": "string",
-              "enum": [
-                "ok",
-                "degraded"
-              ]
-            },
-            "statusReason": {
-              "type": "string"
-            },
+            "status": { "type": "string", "enum": ["ok", "degraded"] },
+            "statusReason": { "type": "string" },
             "database": {
               "type": "object",
               "additionalProperties": true,
               "properties": {
-                "name": {
-                  "type": "string"
-                },
-                "sharding": {
-                  "type": "string"
-                },
-                "replicationFactor": {
-                  "type": [
-                    "integer",
-                    "string"
-                  ]
-                },
-                "writeConcern": {
-                  "type": "integer",
-                  "minimum": 0
-                }
+                "name": { "type": "string" },
+                "sharding": { "type": "string" },
+                "replicationFactor": { "type": ["integer", "string"] },
+                "writeConcern": { "type": "integer", "minimum": 0 }
               }
             },
             "collectionKindCounts": {
               "type": "object",
               "additionalProperties": false,
               "properties": {
-                "smartgraph": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "satellite": {
-                  "type": "integer",
-                  "minimum": 0
-                },
-                "regular": {
-                  "type": "integer",
-                  "minimum": 0
-                }
+                "smartgraph": { "type": "integer", "minimum": 0 },
+                "satellite": { "type": "integer", "minimum": 0 },
+                "regular": { "type": "integer", "minimum": 0 }
               }
             },
             "graphs": {
@@ -993,115 +450,46 @@
               "items": {
                 "type": "object",
                 "additionalProperties": true,
-                "required": [
-                  "name"
-                ],
+                "required": ["name"],
                 "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "isSmart": {
-                    "type": "boolean"
-                  },
-                  "isDisjoint": {
-                    "type": "boolean"
-                  },
-                  "isSatellite": {
-                    "type": "boolean"
-                  },
-                  "smartGraphAttribute": {
-                    "type": "string"
-                  },
-                  "vertexCollections": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "edgeCollections": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
+                  "name": { "type": "string", "minLength": 1 },
+                  "isSmart": { "type": "boolean" },
+                  "isDisjoint": { "type": "boolean" },
+                  "isSatellite": { "type": "boolean" },
+                  "smartGraphAttribute": { "type": "string" },
+                  "vertexCollections": { "type": "array", "items": { "type": "string" } },
+                  "edgeCollections": { "type": "array", "items": { "type": "string" } }
                 }
               }
             },
             "satelliteCollections": {
               "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "items": { "type": "string" }
             },
-            "oneShardLeader": {
-              "type": "string"
-            },
+            "oneShardLeader": { "type": "string" },
             "collections": {
               "type": "object",
               "additionalProperties": {
                 "type": "object",
                 "additionalProperties": true,
-                "required": [
-                  "kind"
-                ],
+                "required": ["kind"],
                 "properties": {
                   "kind": {
                     "type": "string",
-                    "enum": [
-                      "smartgraph",
-                      "satellite",
-                      "regular"
-                    ]
+                    "enum": ["smartgraph", "satellite", "regular"]
                   },
-                  "numberOfShards": {
-                    "type": "integer",
-                    "minimum": 1
-                  },
-                  "shardKeys": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "shardingStrategy": {
-                    "type": "string"
-                  },
-                  "replicationFactor": {
-                    "type": [
-                      "integer",
-                      "string"
-                    ]
-                  },
-                  "writeConcern": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "minReplicationFactor": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "distributeShardsLike": {
-                    "type": [
-                      "string",
-                      "null"
-                    ]
-                  },
-                  "smartGraphAttribute": {
-                    "type": "string"
-                  },
-                  "isSmart": {
-                    "type": "boolean"
-                  },
-                  "isDisjoint": {
-                    "type": "boolean"
-                  },
-                  "isSatellite": {
-                    "type": "boolean"
-                  },
-                  "graphName": {
-                    "type": "string"
-                  }
+                  "numberOfShards": { "type": "integer", "minimum": 1 },
+                  "shardKeys": { "type": "array", "items": { "type": "string" } },
+                  "shardingStrategy": { "type": "string" },
+                  "replicationFactor": { "type": ["integer", "string"] },
+                  "writeConcern": { "type": "integer", "minimum": 0 },
+                  "minReplicationFactor": { "type": "integer", "minimum": 0 },
+                  "distributeShardsLike": { "type": ["string", "null"] },
+                  "smartGraphAttribute": { "type": "string" },
+                  "isSmart": { "type": "boolean" },
+                  "isDisjoint": { "type": "boolean" },
+                  "isSatellite": { "type": "boolean" },
+                  "graphName": { "type": "string" }
                 }
               }
             }
@@ -1109,17 +497,12 @@
         }
       ]
     },
+
     "ShardFamily": {
       "type": "object",
-      "description": "A group of structurally-identical entities (same property set) whose conceptual names share a common suffix (PRD \u00a76.2 bullet 5). Captures the per-source / per-repository / per-stream collection-duplication pattern. NOT multitenancy (structural duplication, not per-customer isolation). Downstream consumers (NL\u2192Cypher prompt builders, UI mapping panels) use the family grouping to emit UNION-aware guidance instead of silently picking one member.",
+      "description": "A group of structurally-identical entities (same property set) whose conceptual names share a common suffix (PRD §6.2 bullet 5). Captures the per-source / per-repository / per-stream collection-duplication pattern. NOT multitenancy (structural duplication, not per-customer isolation). Downstream consumers (NL→Cypher prompt builders, UI mapping panels) use the family grouping to emit UNION-aware guidance instead of silently picking one member.",
       "additionalProperties": false,
-      "required": [
-        "name",
-        "suffix",
-        "discriminator",
-        "sharedProperties",
-        "members"
-      ],
+      "required": ["name", "suffix", "discriminator", "sharedProperties", "members"],
       "properties": {
         "name": {
           "type": "string",
@@ -1134,17 +517,12 @@
         "discriminator": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "source"
-          ],
+          "required": ["source"],
           "properties": {
             "source": {
               "type": "string",
-              "enum": [
-                "field",
-                "collection_prefix"
-              ],
-              "description": "\"field\" when every member declares a candidate discriminator property (see SHARD_FAMILY_DISCRIMINATOR_FIELDS in defaults). \"collection_prefix\" otherwise \u2014 discriminatorValue then comes from the prefix portion of each member's conceptual name."
+              "enum": ["field", "collection_prefix"],
+              "description": "\"field\" when every member declares a candidate discriminator property (see SHARD_FAMILY_DISCRIMINATOR_FIELDS in defaults). \"collection_prefix\" otherwise — discriminatorValue then comes from the prefix portion of each member's conceptual name."
             },
             "field": {
               "type": "string",
@@ -1154,9 +532,7 @@
         },
         "sharedProperties": {
           "type": "array",
-          "items": {
-            "type": "string"
-          },
+          "items": { "type": "string" },
           "description": "Sorted property-name list common to all members. Identical to each member's property names by construction (the bucket key is the hash of this list)."
         },
         "members": {
@@ -1165,11 +541,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "entity",
-              "collectionName",
-              "discriminatorValue"
-            ],
+            "required": ["entity", "collectionName", "discriminatorValue"],
             "properties": {
               "entity": {
                 "type": "string",
@@ -1188,22 +560,15 @@
         }
       }
     },
+
     "Multitenancy": {
-      "description": "Multitenancy classification for the analyzed database (PRD \u00a76.2 bullet 4). Layers on top of shardingProfile: when shardingProfile.style == \"DisjointSmartGraph\" the smart attribute is the tenant key with physicalEnforcement=true. Otherwise the analyzer probes shard keys, candidate discriminator fields, collection naming patterns, and the database name in priority order. Absent (null) when the snapshot has no user collections.",
+      "description": "Multitenancy classification for the analyzed database (PRD §6.2 bullet 4). Layers on top of shardingProfile: when shardingProfile.style == \"DisjointSmartGraph\" the smart attribute is the tenant key with physicalEnforcement=true. Otherwise the analyzer probes shard keys, candidate discriminator fields, collection naming patterns, and the database name in priority order. Absent (null) when the snapshot has no user collections.",
       "oneOf": [
-        {
-          "type": "null"
-        },
+        { "type": "null" },
         {
           "type": "object",
           "additionalProperties": true,
-          "required": [
-            "style",
-            "status",
-            "physicalEnforcement",
-            "tenantKey",
-            "evidence"
-          ],
+          "required": ["style", "status", "physicalEnforcement", "tenantKey", "evidence"],
           "properties": {
             "style": {
               "type": "string",
@@ -1218,22 +583,14 @@
               ],
               "description": "Exclusive tenancy-style classification. \"none\" means no signal triggered (single-tenant database). \"unknown_single_db\" is a hint that this single-database snapshot looks tenant-named; an orchestrator must confirm by aggregating across databases."
             },
-            "status": {
-              "type": "string",
-              "enum": [
-                "ok",
-                "degraded"
-              ]
-            },
+            "status": { "type": "string", "enum": ["ok", "degraded"] },
             "physicalEnforcement": {
               "type": "boolean",
-              "description": "true when tenant isolation is enforced by the storage layer (shard key, smart graph, per-tenant collection / database). false for discriminator_field \u2014 convention only, application code must enforce."
+              "description": "true when tenant isolation is enforced by the storage layer (shard key, smart graph, per-tenant collection / database). false for discriminator_field — convention only, application code must enforce."
             },
             "tenantKey": {
               "type": "array",
-              "items": {
-                "type": "string"
-              },
+              "items": { "type": "string" },
               "description": "Property name(s) that identify a tenant (e.g. [\"tenantId\"], [\"smartAttr\"]). Empty when the style does not surface a single key (e.g. collection_per_tenant)."
             },
             "tenantKeyCollections": {
@@ -1242,34 +599,14 @@
               "items": {
                 "type": "object",
                 "additionalProperties": true,
-                "required": [
-                  "collection"
-                ],
+                "required": ["collection"],
                 "properties": {
-                  "collection": {
-                    "type": "string"
-                  },
-                  "field": {
-                    "type": "string"
-                  },
-                  "shardKey": {
-                    "type": "string"
-                  },
-                  "coverage": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 1
-                  },
-                  "distinctValues": {
-                    "type": "integer",
-                    "minimum": 0
-                  },
-                  "sampleValues": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
+                  "collection": { "type": "string" },
+                  "field": { "type": "string" },
+                  "shardKey": { "type": "string" },
+                  "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+                  "distinctValues": { "type": "integer", "minimum": 0 },
+                  "sampleValues": { "type": "array", "items": { "type": "string" } }
                 }
               }
             },
@@ -1282,21 +619,16 @@
         }
       ]
     },
+
     "TenantScope": {
       "type": "object",
       "description": "Per-entity tenant-isolation classification. Tells downstream consumers (transpilers, NL\u2192Cypher pipelines) how to enforce tenant boundaries when querying this collection. Operators may set this explicitly to override heuristic detection; explicit annotations always win.",
       "additionalProperties": false,
-      "required": [
-        "role"
-      ],
+      "required": ["role"],
       "properties": {
         "role": {
           "type": "string",
-          "enum": [
-            "tenant_root",
-            "tenant_scoped",
-            "global"
-          ],
+          "enum": ["tenant_root", "tenant_scoped", "global"],
           "description": "tenant_root: anchors the tenant hierarchy (typically the Tenant collection itself). tenant_scoped: belongs to a single tenant; query MUST constrain to one tenant either via the denormalised tenantField or via traversal from the tenant root. global: cross-tenant reference data (e.g. CVE, AppVersion); queries MUST NOT include any tenant filter."
         },
         "tenantField": {
@@ -1309,56 +641,42 @@
         }
       }
     },
+
     "AnalyzeResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "analysis"
-      ],
+      "required": ["analysis"],
       "properties": {
-        "analysis": {
-          "$ref": "#/$defs/AnalysisOutput"
-        },
-        "snapshot": {
-          "type": "object",
-          "additionalProperties": true
-        }
+        "analysis": { "$ref": "#/$defs/AnalysisOutput" },
+        "snapshot": { "type": "object", "additionalProperties": true }
       }
     },
+
     "SnapshotResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "snapshot"
-      ],
+      "required": ["snapshot"],
       "properties": {
-        "snapshot": {
-          "type": "object",
-          "additionalProperties": true
-        }
+        "snapshot": { "type": "object", "additionalProperties": true }
       }
     },
+
     "ExportResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "export"
-      ],
+      "required": ["export"],
       "properties": {
         "export": {
           "oneOf": [
-            {
-              "$ref": "#/$defs/AnalysisOutput"
-            },
-            {
-              "$ref": "#/$defs/SparqlExport"
-            }
+            { "$ref": "#/$defs/AnalysisOutput" },
+            { "$ref": "#/$defs/SparqlExport" }
           ]
         }
       }
     },
+
     "Vci": {
-      "description": "Vertex-centric-index signals for a relationship (PRD \u00a76.1/\u00a76.2).",
+      "description": "Vertex-centric-index signals for a relationship (PRD §6.1/§6.2).",
       "type": "object",
       "additionalProperties": true,
       "properties": {
@@ -1366,45 +684,18 @@
           "type": "object",
           "additionalProperties": true,
           "properties": {
-            "accessPattern": {
-              "type": "string",
-              "enum": [
-                "out-edge",
-                "in-edge",
-                "both"
-              ]
-            },
+            "accessPattern": { "type": "string", "enum": ["out-edge", "in-edge", "both"] },
             "indexes": {
               "type": "array",
               "items": {
                 "type": "object",
                 "additionalProperties": true,
                 "properties": {
-                  "root": {
-                    "type": "string",
-                    "enum": [
-                      "_from",
-                      "_to"
-                    ]
-                  },
-                  "fields": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "discriminatorFields": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "unique": {
-                    "type": "boolean"
-                  },
-                  "sparse": {
-                    "type": "boolean"
-                  }
+                  "root": { "type": "string", "enum": ["_from", "_to"] },
+                  "fields": { "type": "array", "items": { "type": "string" } },
+                  "discriminatorFields": { "type": "array", "items": { "type": "string" } },
+                  "unique": { "type": "boolean" },
+                  "sparse": { "type": "boolean" }
                 }
               }
             }
@@ -1420,15 +711,8 @@
                 "type": "object",
                 "additionalProperties": true,
                 "properties": {
-                  "field": {
-                    "type": "string"
-                  },
-                  "sourceCollections": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  }
+                  "field": { "type": "string" },
+                  "sourceCollections": { "type": "array", "items": { "type": "string" } }
                 }
               }
             }
@@ -1436,68 +720,40 @@
         }
       }
     },
+
     "Triple": {
-      "description": "TRIPLE mapping-style annotation (PRD \u00a76.1/\u00a76.2): this entity/relationship is stored in an RDF triple/quad collection rather than as a native property-graph collection.",
+      "description": "TRIPLE mapping-style annotation (PRD §6.1/§6.2): this entity/relationship is stored in an RDF triple/quad collection rather than as a native property-graph collection.",
       "type": "object",
       "additionalProperties": true,
       "properties": {
-        "style": {
-          "const": "TRIPLE"
-        }
+        "style": { "const": "TRIPLE" }
       }
     },
+
     "ElementSource": {
       "description": "Provenance tag (PRD 3.13.2) marking which producer emitted this element: 'llm' (generate/validate/repair loop), 'baseline' (deterministic inference, including reconciliation backfill on an LLM run), or 'human' (curated and preserved across re-analysis).",
       "type": "string",
-      "enum": [
-        "llm",
-        "baseline",
-        "human"
-      ]
+      "enum": ["llm", "baseline", "human"]
     },
+
     "SparqlExport": {
       "type": "object",
       "additionalProperties": true,
-      "required": [
-        "target",
-        "prefixes",
-        "classes",
-        "objectProperties"
-      ],
+      "required": ["target", "prefixes", "classes", "objectProperties"],
       "properties": {
-        "target": {
-          "const": "sparql"
-        },
-        "prefixes": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
+        "target": { "const": "sparql" },
+        "prefixes": { "type": "object", "additionalProperties": { "type": "string" } },
         "classes": {
           "type": "array",
           "items": {
             "type": "object",
             "additionalProperties": true,
-            "required": [
-              "iri",
-              "localName",
-              "label"
-            ],
+            "required": ["iri", "localName", "label"],
             "properties": {
-              "iri": {
-                "type": "string"
-              },
-              "localName": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              },
-              "physical": {
-                "type": "object",
-                "additionalProperties": true
-              }
+              "iri": { "type": "string" },
+              "localName": { "type": "string" },
+              "label": { "type": "string" },
+              "physical": { "type": "object", "additionalProperties": true }
             }
           }
         },
@@ -1506,31 +762,14 @@
           "items": {
             "type": "object",
             "additionalProperties": true,
-            "required": [
-              "iri",
-              "localName",
-              "label"
-            ],
+            "required": ["iri", "localName", "label"],
             "properties": {
-              "iri": {
-                "type": "string"
-              },
-              "localName": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              },
-              "domain": {
-                "type": "string"
-              },
-              "range": {
-                "type": "string"
-              },
-              "physical": {
-                "type": "object",
-                "additionalProperties": true
-              }
+              "iri": { "type": "string" },
+              "localName": { "type": "string" },
+              "label": { "type": "string" },
+              "domain": { "type": "string" },
+              "range": { "type": "string" },
+              "physical": { "type": "object", "additionalProperties": true }
             }
           }
         },
@@ -1539,71 +778,39 @@
           "items": {
             "type": "object",
             "additionalProperties": true,
-            "required": [
-              "iri",
-              "localName",
-              "label"
-            ],
+            "required": ["iri", "localName", "label"],
             "properties": {
-              "iri": {
-                "type": "string"
-              },
-              "localName": {
-                "type": "string"
-              },
-              "label": {
-                "type": "string"
-              },
-              "domain": {
-                "type": "string"
-              },
-              "attribute": {
-                "type": "string"
-              },
-              "physical": {
-                "type": "object",
-                "additionalProperties": true
-              }
+              "iri": { "type": "string" },
+              "localName": { "type": "string" },
+              "label": { "type": "string" },
+              "domain": { "type": "string" },
+              "attribute": { "type": "string" },
+              "physical": { "type": "object", "additionalProperties": true }
             }
           }
         },
-        "physicalMapping": {
-          "type": "object",
-          "additionalProperties": true
-        }
+        "physicalMapping": { "type": "object", "additionalProperties": true }
       }
     },
+
     "DocsResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "markdown"
-      ],
+      "required": ["markdown"],
       "properties": {
-        "markdown": {
-          "type": "string"
-        }
+        "markdown": { "type": "string" }
       }
     },
+
     "OwlResult": {
       "type": "object",
       "additionalProperties": false,
       "oneOf": [
-        {
-          "required": [
-            "turtle"
-          ]
-        },
-        {
-          "required": [
-            "jsonld"
-          ]
-        }
+        { "required": ["turtle"] },
+        { "required": ["jsonld"] }
       ],
       "properties": {
-        "turtle": {
-          "type": "string"
-        },
+        "turtle": { "type": "string" },
         "jsonld": {
           "type": "object",
           "additionalProperties": true,
@@ -1611,135 +818,74 @@
         }
       }
     },
+
     "DiffResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "diff"
-      ],
+      "required": ["diff"],
       "properties": {
         "diff": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Structural diff between input.previousAnalysis and input.analysis (PRD \u00a73.13.3): added/removed/changed entities & relationships, mapping-style flips, and the health-score delta.",
-          "required": [
-            "changed",
-            "entities",
-            "relationships",
-            "mappingStyles"
-          ],
+          "description": "Structural diff between input.previousAnalysis and input.analysis (PRD §3.13.3): added/removed/changed entities & relationships, mapping-style flips, and the health-score delta.",
+          "required": ["changed", "entities", "relationships", "mappingStyles"],
           "properties": {
-            "changed": {
-              "type": "boolean"
-            },
-            "entities": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "relationships": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "mappingStyles": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "healthScore": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "summary": {
-              "type": "object",
-              "additionalProperties": true
-            }
+            "changed": { "type": "boolean" },
+            "entities": { "type": "object", "additionalProperties": true },
+            "relationships": { "type": "object", "additionalProperties": true },
+            "mappingStyles": { "type": "object", "additionalProperties": true },
+            "healthScore": { "type": "object", "additionalProperties": true },
+            "summary": { "type": "object", "additionalProperties": true }
           }
         }
       }
     },
+
     "CsiResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "csi"
-      ],
+      "required": ["csi"],
       "properties": {
         "csi": {
           "type": "object",
           "additionalProperties": true,
           "description": "Conceptual Schema Interchange (CSI) v1 document (direction-agnostic conceptual model + ArangoDB physical mapping + provenance). See docs/csi/v1/csi.schema.json and to_csi().",
-          "required": [
-            "csiVersion",
-            "conceptualModel",
-            "arangoPhysicalMapping",
-            "provenance"
-          ],
+          "required": ["csiVersion", "conceptualModel", "arangoPhysicalMapping", "provenance"],
           "properties": {
-            "csiVersion": {
-              "const": "1"
-            },
-            "conceptualModel": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "arangoPhysicalMapping": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "provenance": {
-              "type": "object",
-              "additionalProperties": true
-            }
+            "csiVersion": { "const": "1" },
+            "conceptualModel": { "type": "object", "additionalProperties": true },
+            "arangoPhysicalMapping": { "type": "object", "additionalProperties": true },
+            "provenance": { "type": "object", "additionalProperties": true }
           }
         }
       }
     },
+
     "ResolveResult": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "resolution"
-      ],
+      "required": ["resolution"],
       "properties": {
         "resolution": {
           "type": "object",
           "additionalProperties": true,
-          "description": "Flattened label/relationship-type \u2192 AQL lookup for a Cypher transpiler (build_cypher_resolution_index): per entity the injection-safe match fragment, per relationship the traversal fragment, or an error block for incomplete mappings.",
+          "description": "Flattened label/relationship-type → AQL lookup for a Cypher transpiler (build_cypher_resolution_index): per entity the injection-safe match fragment, per relationship the traversal fragment, or an error block for incomplete mappings.",
           "properties": {
-            "target": {
-              "const": "cypher"
-            },
-            "entities": {
-              "type": "object",
-              "additionalProperties": true
-            },
-            "relationships": {
-              "type": "object",
-              "additionalProperties": true
-            }
+            "target": { "const": "cypher" },
+            "entities": { "type": "object", "additionalProperties": true },
+            "relationships": { "type": "object", "additionalProperties": true }
           }
         }
       }
     }
   },
+
   "allOf": [
     {
-      "if": {
-        "properties": {
-          "ok": {
-            "const": true
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "result"
-        ]
-      },
-      "else": {
-        "required": [
-          "error"
-        ]
-      }
+      "if": { "properties": { "ok": { "const": true } } },
+      "then": { "required": ["result"] },
+      "else": { "required": ["error"] }
     }
   ]
 }
+

@@ -142,3 +142,80 @@ class TestErrors:
                          "source": {"type": "csv", "url": "/no/such/dir"}})
         assert resp["ok"] is False
         assert resp["error"]["code"] == "SOURCE_ERROR"
+
+
+@pytest.fixture(scope="module")
+def schema():
+    """RSA's published request contract."""
+    import json
+
+    return json.loads(
+        (Path(__file__).resolve().parent.parent
+         / "docs/tool-contract/v1/request.schema.json").read_text()
+    )
+
+
+class TestRequestsValidateAgainstThePublishedSchema:
+    """The requests `run_tool` accepts must match the schema RSA publishes.
+
+    They did not. `docs/tool-contract/v1/request.schema.json` was copied from the ArangoDB
+    analyzer and only partly adapted: the root is `additionalProperties: false` and never
+    declared `source`, a conditional demanded `connection` for analyze/snapshot, and the
+    export operations required `input.analysis`, which this entrypoint does not read. So
+    every real RSA request was invalid against RSA's own contract — undetected, because
+    nothing validated requests and no test compared the two.
+
+    That is the same defect class arango-schema-analyzer flagged (code and schema describing
+    different things). ASA validates requests at call time and caught its own; these tests
+    are the cheaper half — they cannot catch a bad *caller*, but they do stop the schema and
+    the entrypoint drifting apart again.
+    """
+
+    def _errors(self, schema, request):
+        import jsonschema
+
+        return [e.message for e in jsonschema.Draft202012Validator(schema).iter_errors(request)]
+
+    @pytest.mark.parametrize("operation", ["snapshot", "analyze", "owl", "r2rml"])
+    def test_a_live_source_request_is_valid(self, schema, operation):
+        assert not self._errors(
+            schema,
+            {"contractVersion": "1", "operation": operation,
+             "source": {"type": "csv", "url": "/tmp/demo"}},
+        )
+
+    @pytest.mark.parametrize("operation", ["snapshot", "analyze", "owl", "r2rml"])
+    def test_a_captured_physical_request_is_valid(self, schema, operation):
+        assert not self._errors(
+            schema,
+            {"contractVersion": "1", "operation": operation,
+             "input": {"physical": {"tables": {}}}},
+        )
+
+    def test_previous_analysis_is_accepted_for_bitemporal_continuity(self, schema):
+        """The field the bitemporal prior run travels in must itself be contract-legal."""
+        assert not self._errors(
+            schema,
+            {"contractVersion": "1", "operation": "analyze",
+             "source": {"type": "csv", "url": "/tmp/demo"},
+             "input": {"previousAnalysis": {
+                 "conceptualSchema": {"entities": [], "relationships": [], "properties": []},
+                 "physicalMapping": {"entities": {}, "relationships": {}},
+                 "metadata": {"confidence": 1.0, "timestamp": "t",
+                              "analyzedCollectionCounts": {"documentCollections": 0,
+                                                           "edgeCollections": 0},
+                              "detectedPatterns": []},
+             }}},
+        )
+
+    def test_an_operation_with_nothing_to_read_is_rejected(self, schema):
+        """The schema must still constrain, not merely permit."""
+        assert self._errors(schema, {"contractVersion": "1", "operation": "analyze"})
+
+    def test_source_params_are_accepted(self, schema):
+        assert not self._errors(
+            schema,
+            {"contractVersion": "1", "operation": "snapshot",
+             "source": {"type": "csv", "url": "/tmp/demo", "schema": "public",
+                        "params": {"delimiter": ";", "has_header": False}}},
+        )

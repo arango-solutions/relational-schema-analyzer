@@ -182,15 +182,35 @@ Also implemented beyond the letter of §2: the MySQL caveat travels on each tabl
 `extra.validTimeCaveat` rather than living only in documentation, since a consumer reading
 `catalog` is entitled to know the date may be early.
 
-### 4.2 Unrelated contract drift found while wiring this
+### 4.2 Request-contract drift found while wiring this — fixed
 
-`run_tool` requests have **never** validated against the published
-`docs/tool-contract/v1/request.schema.json`, and no test checks that they do. The schema
-still carries `arango-schema-mapper`'s shape — it requires `connection` and declares
-`input.snapshot` — while RSA's entrypoint takes `source` and `input.physical`. Pre-existing
-and out of scope here, but it is the same family of defect as the one above (code and schema
-describing different things), and worth a separate fix: either align the schema to RSA's
-relational variant, or validate requests and discover this the loud way.
+`run_tool` requests had **never** validated against the published
+`docs/tool-contract/v1/request.schema.json`, and nothing tested that they did. The schema was
+copied from the ArangoDB analyzer and only partly adapted, so it described an entrypoint RSA
+does not have. Three defects, all of which made *every* real RSA request invalid against
+RSA's own contract:
+
+1. the root is `additionalProperties: false` and never declared `source`, the relational
+   connection descriptor the entrypoint actually takes;
+2. an `allOf` conditional required `connection` for `analyze` / `snapshot`;
+3. the export operations required `input.analysis`, which this entrypoint never reads —
+   RSA's `owl` / `r2rml` run from a live `source` or a captured `input.physical`.
+
+Fixed by declaring `source` and `input.physical`, and rewriting the conditionals so every
+operation requires *something to read* (`source`, `input.physical`, or the shared
+`connection`) rather than naming the Arango one. `connection` is retained, so the schema
+still accepts the shape it shares with `arango-schema-analyzer`.
+
+Guarded by `tests/test_tool.py::TestRequestsValidateAgainstThePublishedSchema`, which
+validates every request shape the entrypoint accepts. That is the cheaper half of the fix: it
+cannot catch a malformed *caller*, only the schema and the entrypoint drifting apart again.
+ASA validates requests at call time and caught its own bug that way. Doing the same here
+would be stronger and is the obvious follow-up, but it changes runtime behaviour for a
+shipped entrypoint — `additionalProperties: false` would start rejecting callers that pass
+extra keys — so it is a deliberate decision rather than a tidy-up.
+
+`arango-schema-analyzer` does **not** share this drift: its schema matches its entrypoint and
+it validates requests (verified 2026-09-12).
 
 ## 5. Open questions
 
